@@ -28,7 +28,15 @@ baseline-xy-randomness.out: baseline-xy-randomness.cpp makefile
 baseline-xy-randomness.ppm: baseline-xy-randomness.out
 	./baseline-xy-randomness.out ${NSAMPS}
 
+baseline-xy-randomness-traced.out: baseline-xy-randomness-traced.cpp makefile
+	g++ -O3 -fopenmp baseline-xy-randomness-traced.cpp -o baseline-xy-randomness-traced.out
+
+baseline-xy-randomness-traced.ppm: baseline-xy-randomness-traced.out baseline-xy-randomness.ppm
+	./baseline-xy-randomness-traced.out ${NSAMPS}
+	diff baseline-xy-randomness-traced.ppm baseline-xy-randomness.ppm
+
 baseline-same-randomness.out: baseline-same-randomness.cpp makefile
 	g++ -o3 -fopenmp baseline-same-randomness.cpp -o baseline-same-randomness.out
+
 baseline-same-randomness.ppm: baseline-same-randomness.out
 	./baseline-same-randomness.out ${NSAMPS}
