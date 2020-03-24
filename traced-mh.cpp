@@ -104,7 +104,7 @@ Vec radiance(const Ray &r, int depth, Trace &rands) {
     double t;    // distance to intersection
     int id = 0;  // id of intersected object
     if (!intersect(r, t, id)) {
-        rands.score = 0;
+        rands.score *= 1e-2; // heavily don't care about zeros
         return Vec();  // if miss, return black
     }
     const Sphere &obj = spheres[id];  // the hit object
@@ -133,6 +133,7 @@ Vec radiance(const Ray &r, int depth, Trace &rands) {
                f.mult(radiance(Ray(x, r.d - n * 2 * n.dot(r.d)), depth, rands));
     } else {
         assert(obj.refl == REFR);
+        rands.score *= 1.1;
         Ray reflRay(x,
                     r.d - n * 2 * n.dot(r.d));  // Ideal dielectric REFRACTION
         bool into = n.dot(nl) > 0;              // Ray from outside going in?
@@ -177,18 +178,18 @@ int main(int argc, char *argv[]) {
                 // 2x2 subpixel cols
                 for (int sx = 0; sx < 2; sx++, r = Vec()) {
                     int ntraces = 0;
+                    int naccept = 0;
                     int curtraceix = 0;
                     traces[0].Xi[0] = 0;
                     traces[0].Xi[1] = (x + sx) * (x + sx) * (x + sx);
                     traces[0].Xi[2] = (y + sy) * (y + sy) * (y + sy);
 
                     unsigned short int tracerands[3] = {
-                        0,
-                        (short unsigned int) ((x + sx) * (x + sx) * (x + sx)),
-                        (short unsigned int)((y + sy) * (y + sy) * (y + sy))
-                    };
+                        0, (short unsigned int)((x + sx) * (x + sx) * (x + sx)),
+                        (short unsigned int)((y + sy) * (y + sy) * (y + sy))};
 
                     for (int s = 0; s < samps; s++) {
+                        traces[curtraceix].ix = 0;
                         double r1 = 2 * traces[curtraceix].rand(),
                                dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
                         double r2 = 2 * traces[curtraceix].rand(),
@@ -201,14 +202,17 @@ int main(int argc, char *argv[]) {
                                     (1. / samps);
 
                         ntraces++;
-                        if (ntraces >= 2) {
+
+                        if (ntraces < 2) {
+                            curtraceix = 1;
+                        } else {
                             const int prevtraceix = (curtraceix + 1) % 2;
 
-                            const double r = erand48(tracerands);
                             int besttraceix = -1;
                             // r < curscore / prevscore
-                            if (log(r) < log(traces[curtraceix].score) -
+                            if (log(erand48(tracerands)) < log(traces[curtraceix].score) -
                                              log(traces[prevtraceix].score)) {
+                                naccept++;
                                 besttraceix = curtraceix;
                             } else {
                                 besttraceix = prevtraceix;
@@ -227,8 +231,17 @@ int main(int argc, char *argv[]) {
                                     traces[besttraceix].Xi[xii];
                             }
                             memcpy(traces[overwritetraceix].rands,
-                                    traces[besttraceix].rands, 
+                                   traces[besttraceix].rands,
+                                   traces[besttraceix].nrands * sizeof(double));
+
+                            printf("\naccept ratio: %4.2f\tcopied: %10ld bytes", 
+                                    (double)naccept / (ntraces+1),
                                     traces[besttraceix].nrands * sizeof(double));
+
+                            const unsigned int rix = 
+                                traces[besttraceix].nrands > 0 ? nrand48(tracerands) % traces[besttraceix].nrands : 0;
+                            traces[overwritetraceix].rands[rix] =
+                                erand48(tracerands);
                             curtraceix = overwritetraceix;
                         }
 
