@@ -1,10 +1,20 @@
 #include <math.h>    // smallpt, a Path Tracer by Kevin Beason, 2008
 #include <stdio.h>   //        Remove "-fopenmp" for g++ version < 4.2
 #include <stdlib.h>  // Make : g++ -O3 -fopenmp smallpt.cpp -o smallpt
-static const int MAXRANDS=10;
+#include <assert.h>
+static const int MAXRANDS=1e8;
 struct Trace {
-    double rands[MAXRANDS]; int nrands = 0; float score = 1.0;
-    Trace erand48() { }
+    double *rands; unsigned short Xi[3]; int nrands = 0; float score = 1.0;
+    Trace(unsigned short xi0, unsigned short xi1, unsigned short xi2) {
+        Xi[0] = xi0; Xi[1] = xi1; Xi[2] = xi2;
+        rands = (double*)calloc(MAXRANDS, sizeof(double));
+    }
+    double rand() { 
+        assert(nrands < MAXRANDS);
+        double r = erand48(Xi);
+        rands[nrands++] = r;
+        return r;
+    }
 };
 struct Vec {         // Usage: time ./smallpt 5000 && xv image.ppm
     double x, y, z;  // position, also color (r,g,b)
@@ -74,7 +84,7 @@ inline bool intersect(const Ray &r, double &t, int &id) {
         }
     return t < inf;
 }
-Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
+Vec radiance(const Ray &r, int depth, Trace &rands) {
     double t;                                // distance to intersection
     int id = 0;                              // id of intersected object
     if (!intersect(r, t, id)) return Vec();  // if miss, return black
@@ -84,25 +94,27 @@ Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
     double p =
         f.x > f.y && f.x > f.z ? f.x : f.y > f.z ? f.y : f.z;  // max refl
     if (++depth > 5) {
-        if (erand48(Xi) < p) { f = f * (1 / p); } else { return obj.e; /*r.r*/ }
+        if (rands.rand() < p) { f = f * (1 / p); } else { return obj.e; /*r.r*/ }
     }
     if (obj.refl == DIFF) {  // Ideal DIFFUSE reflection
-        double r1 = 2 * M_PI * erand48(Xi), r2 = erand48(Xi), r2s = sqrt(r2);
+        double r1 = 2 * M_PI * rands.rand(), 
+               r2 = rands.rand(),
+               r2s = sqrt(r2);
         Vec w = nl, u = ((fabs(w.x) > .1 ? Vec(0, 1) : Vec(1)) % w).norm(),
             v = w % u;
         Vec d =
             (u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1 - r2)).norm();
-        return obj.e + f.mult(radiance(Ray(x, d), depth, Xi));
+        return obj.e + f.mult(radiance(Ray(x, d), depth, rands));
     } else if (obj.refl == SPEC)  // Ideal SPECULAR reflection
         return obj.e +
-               f.mult(radiance(Ray(x, r.d - n * 2 * n.dot(r.d)), depth, Xi));
+               f.mult(radiance(Ray(x, r.d - n * 2 * n.dot(r.d)), depth, rands));
     Ray reflRay(x, r.d - n * 2 * n.dot(r.d));  // Ideal dielectric REFRACTION
     bool into = n.dot(nl) > 0;                 // Ray from outside going in?
     double nc = 1, nt = 1.5, nnt = into ? nc / nt : nt / nc, ddn = r.d.dot(nl),
            cos2t;
     if ((cos2t = 1 - nnt * nnt * (1 - ddn * ddn)) <
         0)  // Total internal reflection
-        return obj.e + f.mult(radiance(reflRay, depth, Xi));
+        return obj.e + f.mult(radiance(reflRay, depth, rands));
     Vec tdir =
         (r.d * nnt - n * ((into ? 1 : -1) * (ddn * nnt + sqrt(cos2t)))).norm();
     double a = nt - nc, b = nt + nc, R0 = a * a / (b * b),
@@ -110,39 +122,39 @@ Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
     double Re = R0 + (1 - R0) * c * c * c * c * c, Tr = 1 - Re,
            P = .25 + .5 * Re, RP = Re / P, TP = Tr / (1 - P);
     return obj.e + f.mult(depth > 2
-                              ? (erand48(Xi) < P
+                              ? (rands.rand() < P
                                      ?  // Russian roulette
-                                     radiance(reflRay, depth, Xi) * RP
-                                     : radiance(Ray(x, tdir), depth, Xi) * TP)
-                              : radiance(reflRay, depth, Xi) * Re +
-                                    radiance(Ray(x, tdir), depth, Xi) * Tr);
+                                     radiance(reflRay, depth, rands) * RP
+                                     : radiance(Ray(x, tdir), depth, rands) * TP)
+                              : radiance(reflRay, depth, rands) * Re +
+                                    radiance(Ray(x, tdir), depth, rands) * Tr);
 }
 int main(int argc, char *argv[]) {
     int w = 512, h = 512,
-        samps = argc == 2 ? atoi(argv[1]) / 4 : 5;              // # samples
+        samps = argc == 2 ? atoi(argv[1]) / 4 : 1;              // # samples
     Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm());  // cam pos, dir
     Vec cx = Vec(w * .5135 / h), cy = (cx % cam.d).norm() * .5135, r,
         *c = new Vec[w * h];
     for (int y = 0; y < h; y++) {  // Loop over image rows
         fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samps * 4,
                 100. * y / (h - 1));
+        Trace rands(0, 0, y*y*y);
         // cols: why does he use same initialization?
-        for (unsigned short x = 0, Xi[3] = {0, 0, 0}; x < w; x++) {
+        for (unsigned short x = 0; x < w; x++) {
             // 2x2 subpixel rows
             for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) {
                 // 2x2 subpixel cols
-                Trace t;
                 for (int sx = 0; sx < 2; sx++, r = Vec()) {
                     for (int s = 0; s < samps; s++) {
-                        double r1 = 2 * erand48(Xi),
+                        double r1 = 2 * rands.rand(),
                                dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
-                        double r2 = 2 * erand48(Xi),
+                        double r2 = 2 * rands.rand(),
                                dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
                         Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
                                 cy * (((sy + .5 + dy) / 2 + y) / h - .5) +
                                 cam.d;
                         r = r +
-                            radiance(Ray(cam.o + d * 140, d.norm()), 0, Xi) *
+                            radiance(Ray(cam.o + d * 140, d.norm()), 0, rands) *
                                 (1. / samps);
                     }  // Camera rays are pushed ^^^^^ forward to start in
                        // interior

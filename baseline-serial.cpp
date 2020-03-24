@@ -114,7 +114,7 @@ Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
 }
 int main(int argc, char *argv[]) {
     int w = 512, h = 512,
-        samps = argc == 2 ? atoi(argv[1]) / 4 : 5;              // # samples
+        samps = argc == 2 ? atoi(argv[1]) / 4 : 1;              // # samples
     Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm());  // cam pos, dir
     Vec cx = Vec(w * .5135 / h), cy = (cx % cam.d).norm() * .5135, r,
         *c = new Vec[w * h];
@@ -122,7 +122,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samps * 4,
                 100. * y / (h - 1));
         // cols
-        for (unsigned short x = 0, Xi[3] = {0, 0, y * y * y}; x < w; x++) {
+        unsigned short  Xi[3] = {0, 0, y * y * y};
+        for (unsigned short x = 0; x < w; x++) {
             // 2x2 subpixel rows
             for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) {
                 // 2x2 subpixel cols
