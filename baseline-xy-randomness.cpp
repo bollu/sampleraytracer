@@ -118,19 +118,20 @@ int main(int argc, char *argv[]) {
     Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm());  // cam pos, dir
     Vec cx = Vec(w * .5135 / h), cy = (cx % cam.d).norm() * .5135, r,
         *c = new Vec[w * h];
-#pragma omp parallel for schedule(dynamic, 1) private(r)  // OpenMP
+#pragma omp parallel for schedule(dynamic, 1)  private(r)  // OpenMP
     for (int y = 0; y < h; y++) {  // Loop over image rows
-        fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samps * 4,
-                100. * y / (h - 1));
+        fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samps * 4, 100. * y / (h - 1));
         // cols
         for (unsigned short x = 0; x < w; x++) {
             // 2x2 subpixel rows
-            for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) {
+            for (int sy = 0; sy < 2; sy++) {
                 // 2x2 subpixel cols
-                for (int sx = 0; sx < 2; sx++, r = Vec()) {
+                for (int sx = 0; sx < 2; sx++) {
+                    r = Vec();
                     for (int s = 0; s < samps; s++) {
-                        unsigned short Xi[3] = {s*s*s, x*x*x, y*y*y};
-
+                        unsigned short Xi[3] = {(x+sx)*(x+sx)*(x+sx),
+                            (y+sy)*(y+sy)*(y+sy),
+                            s*s*s};
                         double r1 = 2 * erand48(Xi),
                                dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
                         double r2 = 2 * erand48(Xi),
@@ -143,6 +144,7 @@ int main(int argc, char *argv[]) {
                                 (1. / samps);
                     }  // Camera rays are pushed ^^^^^ forward to start in
                        // interior
+                    const int i = (h - y - 1) * w + x;
                     c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * .25;
                 }
             }

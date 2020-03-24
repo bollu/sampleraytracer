@@ -26,3 +26,4 @@ or if it was equivalent to serial semantics.
 
 Then checked effect of type of randomness by creating baseline-same-randomness
 and baseline-xy-randomness.
+convert baseline-same-randomness.ppm baseline-same-randomness.png

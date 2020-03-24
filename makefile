@@ -1,4 +1,4 @@
-NSAMPS=100
+NSAMPS=200
 
 baseline.out: baseline.cpp
 	g++ -O3 -fopenmp baseline.cpp -o baseline.out
