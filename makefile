@@ -16,7 +16,7 @@ baseline-serial.ppm: baseline-serial.out baseline.ppm makefile
 	diff baseline-serial.ppm baseline.ppm
 
 baseline-traced.out: baseline-traced.cpp makefile
-	g++ -O3 baseline-traced.cpp -o baseline-traced.out
+	g++ -std=c++14 -O3 baseline-traced.cpp -o baseline-traced.out
 
 baseline-traced.ppm: baseline-traced.out makefile baseline.ppm
 	./baseline-traced.out ${NSAMPS}
@@ -29,7 +29,7 @@ baseline-xy-randomness.ppm: baseline-xy-randomness.out
 	./baseline-xy-randomness.out ${NSAMPS}
 
 baseline-xy-randomness-traced.out: baseline-xy-randomness-traced.cpp makefile
-	g++ -O3 -fopenmp baseline-xy-randomness-traced.cpp -o baseline-xy-randomness-traced.out
+	g++ -std=c++14 -O3 -fopenmp baseline-xy-randomness-traced.cpp -o baseline-xy-randomness-traced.out
 
 baseline-xy-randomness-traced.ppm: baseline-xy-randomness-traced.out baseline-xy-randomness.ppm
 	./baseline-xy-randomness-traced.out ${NSAMPS}
@@ -40,3 +40,10 @@ baseline-same-randomness.out: baseline-same-randomness.cpp makefile
 
 baseline-same-randomness.ppm: baseline-same-randomness.out
 	./baseline-same-randomness.out ${NSAMPS}
+
+traced-mh.out: traced-mh.cpp
+	g++ -std=c++14 -o3 -fopenmp traced-mh.cpp -o traced-mh.out
+
+traced-mh.ppm: traced-mh.out
+	./traced-mh.out ${NSAMPS}
+
