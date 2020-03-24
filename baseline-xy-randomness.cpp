@@ -123,8 +123,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samps * 4,
                 100. * y / (h - 1));
         // cols
-        unsigned short  Xi[3] = {0, 0, y * y * y};
         for (unsigned short x = 0; x < w; x++) {
+            unsigned short Xi[3] = {0, x*x*x, y*y*y};
             // 2x2 subpixel rows
             for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) {
                 // 2x2 subpixel cols
@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    FILE *f = fopen("baseline.ppm", "w");  // Write image to PPM file.
+    FILE *f = fopen("baseline-xy-randomness.ppm", "w");  // Write image to PPM file.
     fprintf(f, "P3\n%d %d\n%d\n", w, h, 255);
     for (int i = 0; i < w * h; i++)
         fprintf(f, "%d %d %d ", toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));

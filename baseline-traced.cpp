@@ -2,7 +2,10 @@
 #include <stdio.h>   //        Remove "-fopenmp" for g++ version < 4.2
 #include <stdlib.h>  // Make : g++ -O3 -fopenmp smallpt.cpp -o smallpt
 static const int MAXRANDS=10;
-struct Trace {double rands[MAXRANDS]; float score;  float p; };
+struct Trace {
+    double rands[MAXRANDS]; int nrands = 0; float score = 1.0;
+    Trace erand48() { }
+};
 struct Vec {         // Usage: time ./smallpt 5000 && xv image.ppm
     double x, y, z;  // position, also color (r,g,b)
     Vec(double x_ = 0, double y_ = 0, double z_ = 0) {
@@ -115,19 +118,20 @@ Vec radiance(const Ray &r, int depth, unsigned short *Xi) {
                                     radiance(Ray(x, tdir), depth, Xi) * Tr);
 }
 int main(int argc, char *argv[]) {
-    int w = 1024, h = 768,
-        samps = argc == 2 ? atoi(argv[1]) / 4 : 1;              // # samples
+    int w = 512, h = 512,
+        samps = argc == 2 ? atoi(argv[1]) / 4 : 5;              // # samples
     Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm());  // cam pos, dir
     Vec cx = Vec(w * .5135 / h), cy = (cx % cam.d).norm() * .5135, r,
         *c = new Vec[w * h];
     for (int y = 0; y < h; y++) {  // Loop over image rows
         fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samps * 4,
                 100. * y / (h - 1));
-        // cols
-        for (unsigned short x = 0, Xi[3] = {0, 0, y * y * y}; x < w; x++) {
+        // cols: why does he use same initialization?
+        for (unsigned short x = 0, Xi[3] = {0, 0, 0}; x < w; x++) {
             // 2x2 subpixel rows
             for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) {
                 // 2x2 subpixel cols
+                Trace t;
                 for (int sx = 0; sx < 2; sx++, r = Vec()) {
                     for (int s = 0; s < samps; s++) {
                         double r1 = 2 * erand48(Xi),
