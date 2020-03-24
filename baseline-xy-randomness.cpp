@@ -124,12 +124,13 @@ int main(int argc, char *argv[]) {
                 100. * y / (h - 1));
         // cols
         for (unsigned short x = 0; x < w; x++) {
-            unsigned short Xi[3] = {0, x*x*x, y*y*y};
             // 2x2 subpixel rows
             for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) {
                 // 2x2 subpixel cols
                 for (int sx = 0; sx < 2; sx++, r = Vec()) {
                     for (int s = 0; s < samps; s++) {
+                        unsigned short Xi[3] = {s*s*s, x*x*x, y*y*y};
+
                         double r1 = 2 * erand48(Xi),
                                dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
                         double r2 = 2 * erand48(Xi),
