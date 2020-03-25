@@ -3,17 +3,28 @@
 #include <stdio.h>   //        Remove "-fopenmp" for g++ version < 4.2
 #include <stdlib.h>  // Make : g++ -O3 -fopenmp smallpt.cpp -o smallpt
 #include <string.h>  // Make : g++ -O3 -fopenmp smallpt.cpp -o smallpt
+static const bool LOG = false;
 static const int MAXRANDS = 1e8;
+
+template<typename T>
+T max(T a, T b) { return a > b ? a : b; }
+template<typename T>
+T max3(T a, T b, T c) { return max(a, max(b, c)); }
 
 enum class TraceCollector {};
 
 struct Trace {
     double *rands;
     unsigned short Xi[3];
-    float score;
+    float score = 1.0;
     int nrands = 0;
     int ix = 0;
 
+    void reset() {
+        score = 0.0;
+        ix = 0;
+        nrands = 0;
+    }
     Trace() { rands = (double *)malloc(MAXRANDS * sizeof(double)); }
 
     Trace(const Trace &other) = delete;
@@ -21,9 +32,9 @@ struct Trace {
     double rand() {
         assert(nrands < MAXRANDS);
         if (ix >= nrands) {
-            double r = erand48(Xi);
-            rands[ix++] = r;
-            nrands = ix;
+            const double r = erand48(Xi);
+            rands[ix] = r;
+            nrands = ix = ix + 1;
             return r;
         } else {
             return rands[ix++];
@@ -73,20 +84,22 @@ struct Sphere {
         return (t = b - det) > eps ? t : ((t = b + det) > eps ? t : 0);
     }
 };
+
+const Vec zero = Vec();
 Sphere spheres[] = {
     // Scene: radius, position, emission, color, material
-    Sphere(1e5, Vec(1e5 + 1, 40.8, 81.6), Vec(), Vec(.75, .25, .25),
+    Sphere(1e5, Vec(1e5 + 1, 40.8, 81.6), zero, Vec(.75, .25, .25),
            DIFF),  // Left
-    Sphere(1e5, Vec(-1e5 + 99, 40.8, 81.6), Vec(), Vec(.25, .25, .75),
+    Sphere(1e5, Vec(-1e5 + 99, 40.8, 81.6), zero, Vec(.25, .25, .75),
            DIFF),                                                      // Rght
-    Sphere(1e5, Vec(50, 40.8, 1e5), Vec(), Vec(.75, .75, .75), DIFF),  // Back
-    Sphere(1e5, Vec(50, 40.8, -1e5 + 170), Vec(), Vec(), DIFF),        // Frnt
-    Sphere(1e5, Vec(50, 1e5, 81.6), Vec(), Vec(.75, .75, .75), DIFF),  // Botm
-    Sphere(1e5, Vec(50, -1e5 + 81.6, 81.6), Vec(), Vec(.75, .75, .75),
+    Sphere(1e5, Vec(50, 40.8, 1e5), zero, Vec(.75, .75, .75), DIFF),  // Back
+    Sphere(1e5, Vec(50, 40.8, -1e5 + 170), zero, zero, DIFF),        // Frnt
+    Sphere(1e5, Vec(50, 1e5, 81.6), zero, Vec(.75, .75, .75), DIFF),  // Botm
+    Sphere(1e5, Vec(50, -1e5 + 81.6, 81.6), zero, Vec(.75, .75, .75),
            DIFF),                                                       // Top
-    Sphere(16.5, Vec(27, 16.5, 47), Vec(), Vec(1, 1, 1) * .999, SPEC),  // Mirr
-    Sphere(16.5, Vec(73, 16.5, 78), Vec(), Vec(1, 1, 1) * .999, REFR),  // Glas
-    Sphere(600, Vec(50, 681.6 - .27, 81.6), Vec(12, 12, 12), Vec(),
+    Sphere(16.5, Vec(27, 16.5, 47), zero, Vec(1, 1, 1) * .999, SPEC),  // Mirr
+    Sphere(16.5, Vec(73, 16.5, 78), zero, Vec(1, 1, 1) * .999, SPEC),  // Glas
+    Sphere(500, Vec(50, 81.6 + 500 - .27, 81.6), Vec(20, 20, 20), zero,
            DIFF)  // Lite
 };
 inline double clamp(double x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
@@ -104,9 +117,10 @@ Vec radiance(const Ray &r, int depth, Trace &rands) {
     double t;    // distance to intersection
     int id = 0;  // id of intersected object
     if (!intersect(r, t, id)) {
-        rands.score *= 1e-2; // heavily don't care about zeros
         return Vec();  // if miss, return black
     }
+
+
     const Sphere &obj = spheres[id];  // the hit object
     Vec x = r.o + r.d * t, n = (x - obj.p).norm(),
         nl = n.dot(r.d) < 0 ? n : n * -1, f = obj.c;
@@ -116,10 +130,12 @@ Vec radiance(const Ray &r, int depth, Trace &rands) {
         if (rands.rand() < p) {
             f = f * (1 / p);
         } else {
+            // rands.score += log1p(0);
             return obj.e; /*r.r*/
         }
     }
     if (obj.refl == DIFF) {  // Ideal DIFFUSE reflection
+        //rands.score += log(1.1);
         double r1 = 2 * M_PI * rands.rand(), r2 = rands.rand(), r2s = sqrt(r2);
         Vec w = nl, u = ((fabs(w.x) > .1 ? Vec(0, 1) : Vec(1)) % w).norm(),
             v = w % u;
@@ -127,13 +143,13 @@ Vec radiance(const Ray &r, int depth, Trace &rands) {
             (u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1 - r2)).norm();
         return obj.e + f.mult(radiance(Ray(x, d), depth, rands));
     } else if (obj.refl == SPEC) {  // Ideal SPECULAR reflection
-        rands.score *= 1.1;
+        // rands.score += log(1.1);
         // send more towards SPECULAR
         return obj.e +
                f.mult(radiance(Ray(x, r.d - n * 2 * n.dot(r.d)), depth, rands));
     } else {
         assert(obj.refl == REFR);
-        rands.score *= 1.1;
+        //rands.score += log(1.1);
         Ray reflRay(x,
                     r.d - n * 2 * n.dot(r.d));  // Ideal dielectric REFRACTION
         bool into = n.dot(nl) > 0;              // Ray from outside going in?
@@ -160,6 +176,36 @@ Vec radiance(const Ray &r, int depth, Trace &rands) {
     }
 }
 
+bool mhstep(Trace &trace, float &prevscore) {
+    trace.ix = 0;
+
+    const double curscore = trace.score;
+    trace.score = 0;
+
+    const double acceptr = log(erand48(trace.Xi));
+    const bool accept = acceptr <  curscore - prevscore;
+
+    //#if (LOG) {
+    //#    printf("%10s | (%6.2f <? %6.2f - %6.2f := %6.2f)\n",
+    //#            accept ? "ACCEPT" : "REJECT", 
+    //#            acceptr, trace.score, prevscore,
+    //#            trace.score - prevscore);
+    //#}
+
+
+    // flush the randomness
+    if (!accept || trace.nrands == 0) { trace.nrands = 0;  return false; }
+
+
+    prevscore = curscore;
+    const unsigned int rix =
+        nrand48(trace.Xi) % trace.nrands;
+    trace.rands[rix] = erand48(trace.Xi);
+
+    return true;
+}
+
+
 int main(int argc, char *argv[]) {
     int w = 512, h = 512,
         samps = argc == 2 ? atoi(argv[1]) / 4 : 1;              // # samples
@@ -167,91 +213,57 @@ int main(int argc, char *argv[]) {
     Vec cx = Vec(w * .5135 / h), cy = (cx % cam.d).norm() * .5135, r,
         *c = new Vec[w * h];
 
-    Trace traces[2];
+#pragma omp parallel for schedule(dynamic, 1) private(r)  // OpenMP
     for (int y = 0; y < h; y++) {  // Loop over image rows
         fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samps * 4,
                 100. * y / (h - 1));
+        Trace trace;
+        trace.Xi[0] = 0;
+        trace.Xi[1] = 0;
+        trace.Xi[2] = y*y*y;
+        float prevscore = 0;
+        int ntraces = 0;
+        int naccept = 0;
+
         // cols: why does he use same initialization?
         for (unsigned short x = 0; x < w; x++) {
+
             // 2x2 subpixel rows
-            for (int sy = 0, i = (h - y - 1) * w + x; sy < 2; sy++) {
+            for (int sy = 0; sy < 2; sy++) {
+                const int i = (h - y - 1) * w + x;
                 // 2x2 subpixel cols
                 for (int sx = 0; sx < 2; sx++, r = Vec()) {
-                    int ntraces = 0;
-                    int naccept = 0;
-                    int curtraceix = 0;
-                    traces[0].Xi[0] = 0;
-                    traces[0].Xi[1] = (x + sx) * (x + sx) * (x + sx);
-                    traces[0].Xi[2] = (y + sy) * (y + sy) * (y + sy);
 
                     unsigned short int tracerands[3] = {
                         0, (short unsigned int)((x + sx) * (x + sx) * (x + sx)),
                         (short unsigned int)((y + sy) * (y + sy) * (y + sy))};
 
                     for (int s = 0; s < samps; s++) {
-                        traces[curtraceix].ix = 0;
-                        double r1 = 2 * traces[curtraceix].rand(),
+
+                        double r1 = 2 * trace.rand(),
                                dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
-                        double r2 = 2 * traces[curtraceix].rand(),
+                        double r2 = 2 * trace.rand(),
                                dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
                         Vec d = cx * (((sx + .5 + dx) / 2 + x) / w - .5) +
                                 cy * (((sy + .5 + dy) / 2 + y) / h - .5) +
                                 cam.d;
-                        r = r + radiance(Ray(cam.o + d * 140, d.norm()), 0,
-                                         traces[curtraceix]) *
-                                    (1. / samps);
-
+                        Vec rad = 
+                            radiance(Ray(cam.o + d * 140, d.norm()), 0, trace) *
+                                (1. / samps);
+                        r = r + rad;
+                        trace.score = log(max3(rad.x, rad.y, rad.z));
                         ntraces++;
-
-                        if (ntraces < 2) {
-                            curtraceix = 1;
-                        } else {
-                            const int prevtraceix = (curtraceix + 1) % 2;
-
-                            int besttraceix = -1;
-                            // r < curscore / prevscore
-                            if (log(erand48(tracerands)) < log(traces[curtraceix].score) -
-                                             log(traces[prevtraceix].score)) {
-                                naccept++;
-                                besttraceix = curtraceix;
-                            } else {
-                                besttraceix = prevtraceix;
-                            }
-
-                            assert(besttraceix == 0 || besttraceix == 1);
-
-                            const int overwritetraceix = (besttraceix + 1) % 2;
-
-                            traces[overwritetraceix].nrands =
-                                traces[besttraceix].nrands;
-                            traces[overwritetraceix].ix = 0;
-                            traces[overwritetraceix].score = 1;
-                            for (int xii = 0; xii < 3; ++xii) {
-                                traces[overwritetraceix].Xi[xii] =
-                                    traces[besttraceix].Xi[xii];
-                            }
-                            memcpy(traces[overwritetraceix].rands,
-                                   traces[besttraceix].rands,
-                                   traces[besttraceix].nrands * sizeof(double));
-
-                            printf("\naccept ratio: %4.2f\tcopied: %10ld bytes", 
-                                    (double)naccept / (ntraces+1),
-                                    traces[besttraceix].nrands * sizeof(double));
-
-                            const unsigned int rix = 
-                                traces[besttraceix].nrands > 0 ? nrand48(tracerands) % traces[besttraceix].nrands : 0;
-                            traces[overwritetraceix].rands[rix] =
-                                erand48(tracerands);
-                            curtraceix = overwritetraceix;
-                        }
-
-                    }  // Camera rays are pushed ^^^^^ forward to start in
-                       // interior
+                        naccept += mhstep(trace, prevscore);
+                    }
+                    // Camera rays are pushed ^^^^^ forward to start in
+                    // interior
                     c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z)) * .25;
-                }
-            }
-        }
-    }
+                } // sx
+            } // sy
+        } // x
+        fprintf(stderr, " |acceptance ratio: %10.6f\n", (float) naccept/ntraces);
+
+    } // y
     FILE *f = fopen("traced-mh.ppm", "w");  // Write image to PPM file.
     fprintf(f, "P3\n%d %d\n%d\n", w, h, 255);
     for (int i = 0; i < w * h; i++)
