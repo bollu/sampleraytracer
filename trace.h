@@ -4,7 +4,7 @@
 #include <functional>
 #include <iostream>
 
-static const int MAXRANDS = 10;
+static const int MAXRANDS = 1e8;
 
 struct Trace {
     double *rands;
@@ -17,11 +17,11 @@ struct Trace {
         score = 0.0;
         ix = 0;
         nrands = 0;
-        for(int i = 0; i < MAXRANDS; ++i) {
-            rands[i] = -42;
-        }
+        // for(int i = 0; i < MAXRANDS; ++i) {
+        //     rands[i] = -42;
+        // }
     }
-    Trace() { rands = (double *)malloc(MAXRANDS * sizeof(double)); }
+    Trace(double *mem) : rands(mem) {};
 
     Trace(const Trace &other) = delete;
 
@@ -36,8 +36,6 @@ struct Trace {
             return rands[ix++];
         }
     }
-
-    ~Trace() { free(rands); }
 };
 
 std::ostream &operator << (std::ostream &o, const Trace &t) {
@@ -45,27 +43,26 @@ std::ostream &operator << (std::ostream &o, const Trace &t) {
 }
 
 template <typename V, typename F, typename ...Args>
-V metropolisStep(const int nsamps, int &naccept,
-                 F &f, Args... args) {
+V metropolisStep(double *tracemem, const int nsamps, int &naccept,
+                 F f, Args... args) {
                  // std::function<V(Trace &)> f) {
-    Trace t;
+    Trace t(tracemem);
     t.reset();
     V prevv(f(t));
+
     double prevscore = 0;
 
-    for (int i = 0; i < nsamps; i++) {
+    for (int i = 1; i < nsamps; i++) {
         // 1. perturb
         const int prev_nrands = t.nrands;
         const unsigned int rix = t.nrands > 0 ? nrand48(t.Xi) % t.nrands : -1;
         const double prev_rand_at_rix = t.nrands  > 0?  t.rands[rix] : -42;
 
         t.rands[rix] = erand48(t.Xi);
-
         // 2. sample
         t.reset();
         V curv = f(t, args...);
         const double curscore = t.score + t.nrands;
-        std::cout << t;
 
         const double acceptr = log(erand48(t.Xi));
         // TODO: double-check that this is indeed the correct
