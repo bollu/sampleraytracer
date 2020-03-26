@@ -7,6 +7,8 @@ as a baseline, and then modify the sampler to be more and more complex.
 
 - `baseline.cpp` is the code from smallpt, `ClangFormat`ted. This code
   uses the same randomness across each `y` axis.
+- `baseline1x1.cpp` is the same as `baseline.cpp`, but uses a `1x1`
+   grid to take rays from.
 - `baseline-serial.cpp` is the code from smallpt with parallelism removed.
   This will help to try and use other samplers.
 - `baseline-traced.cpp` is the code from smallpt, serialized, then built
