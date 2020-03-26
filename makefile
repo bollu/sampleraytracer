@@ -1,4 +1,4 @@
-NSAMPS=32
+NSAMPS=16
 
 baseline.out: baseline.cpp
 	g++ -O3 -fopenmp baseline.cpp -o baseline.out
@@ -42,8 +42,15 @@ baseline-same-randomness.ppm: baseline-same-randomness.out
 	./baseline-same-randomness.out ${NSAMPS}
 
 traced-mh.out: traced-mh.cpp
-	g++ -std=c++14  -funroll-loops -O3 -fopenmp traced-mh.cpp -o traced-mh.out
+	g++ -std=c++14  -funroll-loops -fsanitize=address -fsanitize=undefined \
+		-O3 -fopenmp traced-mh.cpp -o traced-mh.out
 
 traced-mh.ppm: traced-mh.out
 	./traced-mh.out ${NSAMPS}
+
+testtrace: testtrace.cpp
+	g++ -g -std=c++14  -fsanitize=address -fsanitize=undefined \
+		-O0  testtrace.cpp -o testtrace.out
+	./testtrace.out
+
 
