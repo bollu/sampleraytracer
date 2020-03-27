@@ -66,26 +66,22 @@ void histogram (T *arr, int n,
     }
 }
 
-double gaussian(Trace &trace) {
+void gaussian(Trace<double> &trace) {
     double r = 0.5 - trace.rand();
     r *= 5;
     trace.score = -r*r;
-    cout << "r: " << r << "\n";
-    return r;
+    trace.val = r;
 }
 static const int NSAMPLES = 1e4;
-static const int NMOVES_PER_SAMPLE = 100;
+static const int NMOVES_PER_SAMPLE = 4;
 static const int NBINS = 60;
 
 int main() {
 
-    double *tracemem = new double[MAXRANDS];
+    double *randmem = new double[MAXRANDS];
     double gs[NSAMPLES];
-    int naccept = 0;
-    for(int i = 0; i < NSAMPLES; ++i) {
-        gs[i] = metropolisStep<double>(tracemem, NMOVES_PER_SAMPLE, 
-                naccept, gaussian);
-    }
+    sampleMH<double>(NSAMPLES, NMOVES_PER_SAMPLE, randmem, 0, gs, gaussian);
+
     double gshist[NBINS];
     histogram<double>(gs, NSAMPLES, gshist, NBINS);
 
