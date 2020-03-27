@@ -74,18 +74,37 @@ double gaussian(Trace<double> &trace) {
 };
 
 static const int NSAMPLES = 1e4;
-static const int NMOVES_PER_SAMPLE = 100;
-static const int NBINS = 60;
+static const int NMOVES_PER_SAMPLE = 3;
+static const int NBINS = 50;
 
-int main() {
-
+int plot_gaussian() {
+    std::cout << "##Gaussian:##\n";
     double *randmem = new double[MAXRANDS];
     double gs[NSAMPLES];
-    sampleMH<double>(NSAMPLES, NMOVES_PER_SAMPLE, randmem, 0, gs, gaussian);
+    sampleMH<double>(NSAMPLES, NMOVES_PER_SAMPLE, randmem, gs, gaussian);
 
     double gshist[NBINS];
     histogram<double>(gs, NSAMPLES, gshist, NBINS);
 
     plot(std::cout, gshist, NBINS, 5);
     return 0;
+}
+
+int plot_uniform() {
+    std::cout << "##Uniform:##\n";
+    double *randmem = new double[MAXRANDS];
+    double gs[NSAMPLES];
+    sampleMH<double>(NSAMPLES, NMOVES_PER_SAMPLE, randmem, gs, [](Trace<double> &trace) {
+            trace.score = 0; return trace.rand();
+            });
+
+    double gshist[NBINS];
+    histogram<double>(gs, NSAMPLES, gshist, NBINS);
+    plot(std::cout, gshist, NBINS, 5);
+    return 0;
+}
+
+int main() {
+    plot_gaussian();
+    plot_uniform();
 }
