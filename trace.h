@@ -66,8 +66,7 @@ void metropolisStep(Trace<V> &t, const int nmoves_per_sample, int &naccept,
 
         // TODO: use constexpr if to pick between the two.
         // V curv = f(t, args...);
-        f(t);
-        const V curv = t.val;
+        const V curv = f(t);
         const double curscore = t.score + t.nrands;
         const double acceptr = log(erand48(t.Xi));
         // TODO: double-check that this is indeed the correct
@@ -77,6 +76,7 @@ void metropolisStep(Trace<V> &t, const int nmoves_per_sample, int &naccept,
         if (accept) {
             prevscore = curscore;
             prevv = curv;
+            t.val = curv;
             naccept++;
         } else {
             // use t = t (old trace)

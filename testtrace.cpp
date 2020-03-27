@@ -66,14 +66,15 @@ void histogram (T *arr, int n,
     }
 }
 
-void gaussian(Trace<double> &trace) {
+double gaussian(Trace<double> &trace) {
     double r = 0.5 - trace.rand();
     r *= 5;
     trace.score = -r*r;
-    trace.val = r;
-}
+    return r;
+};
+
 static const int NSAMPLES = 1e4;
-static const int NMOVES_PER_SAMPLE = 4;
+static const int NMOVES_PER_SAMPLE = 100;
 static const int NBINS = 60;
 
 int main() {
