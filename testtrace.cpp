@@ -74,7 +74,7 @@ double gaussian(Trace<double> &trace) {
 };
 
 static const int NSAMPLES = 1e4;
-static const int NMOVES_PER_SAMPLE = 3;
+static const int NMOVES_PER_SAMPLE = 5;
 static const int NBINS = 50;
 
 int plot_gaussian() {

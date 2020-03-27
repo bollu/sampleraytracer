@@ -6,7 +6,7 @@
 #include "trace.h"
 
 static const bool LOG = false;
-static const int NMOVES_PER_SAMPLE = 2;
+static const int NMOVES_PER_SAMPLE = 1;
 
 template <typename T>
 T max(T a, T b) {
@@ -184,7 +184,7 @@ Vec radiance(const Ray &r, int &depth, bool &reachedemmitter,
 
 int main(int argc, char *argv[]) {
     int w = 512, h = 512,
-        samps = argc == 2 ? atoi(argv[1]) / NMOVES_PER_SAMPLE : 1;  // # samples
+        samps = argc == 2 ? atoi(argv[1]) : 1;  // # samples
     Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm());  // cam pos, dir
     Vec cx = Vec(w * .5135 / h), cy = (cx % cam.d).norm() * .5135,
         *c = new Vec[w * h];
@@ -192,7 +192,7 @@ int main(int argc, char *argv[]) {
 #pragma omp parallel for collapse(2) schedule(dynamic, 1) 
     for (int y = 0; y < h; y++) {  // Loop over image rows
         // cols: why does he use same initialization?
-        for (unsigned short x = 0; x < w; x++) {
+        for (int x = 0; x < w; x++) {
             fprintf(stderr, "\rRendering (%d spp) %5.2f%%",
                     samps * NMOVES_PER_SAMPLE,
                     100. * (y * w + x) / (w * h));
@@ -200,10 +200,10 @@ int main(int argc, char *argv[]) {
             double *tracemem = (double *)malloc(sizeof(double) * MAXRANDS);
             Vec *samplerays = (Vec *)malloc(sizeof(Vec) * samps);
 
-            unsigned short Xi[3] = {0, y, x};
+            unsigned short Xi[3] = {0, y*y*y, x*x*x};
             // Vec r = Vec();
             sampleMH(samps, NMOVES_PER_SAMPLE, Xi, tracemem, samplerays,
-                     [&](Trace<Vec> &trace) {
+                     [cx, cy, cam, x, y, w, h, samps](Trace<Vec> &trace) {
                          int depth = 1;
                          bool reachedemmitter = false;
                          double r1 = 2 * trace.rand(),
@@ -214,11 +214,11 @@ int main(int argc, char *argv[]) {
                                  cy * (((.5 + dy) / 2 + y) / h - .5) +
                                  cam.d;
                          Vec rad = radiance(Ray(cam.o + d * 140, d.norm()),
-                                            depth, reachedemmitter, trace) *
+                                            depth, reachedemmitter, trace) * 
                                    (1.0 / samps);
 
                          rad = Vec(clamp(rad.x), clamp(rad.y), clamp(rad.z));
-                         const Vec hsl = rgb2hsl(rad);
+                         // const Vec hsl = rgb2hsl(rad);
                          trace.score = 0;
 
                          // if (!reachedemmitter) {
@@ -232,7 +232,6 @@ int main(int argc, char *argv[]) {
                          // step.
                          return rad;
                      });
-
             const int i = (h - y - 1) * w + x;
             for (int j = 0; j < samps; ++j) {
                 c[i] = c[i] + samplerays[j];

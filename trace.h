@@ -84,13 +84,53 @@ V metropolisStep(Trace<V> &t, const int nmoves_per_sample, int &naccept, F f,
 };
 
 template <typename V, typename F, typename... Args>
-void sampleMH(int nsamples, int nmoves_per_sample, unsigned short Xi[3],
-              double *randmem, V *out, F f, Args... args) {
+void sampleMH(const int nsamples, const int nmoves_per_sample, unsigned short Xi[3],
+              double *randmem, V *out, const F f, Args... args) {
+
+
     Trace<V> t(randmem, Xi);
+    for(int i = 0; i < nsamples; ++i) {
+        out[i] = f(t);
+    }
+    return;
 
     int naccept = 0;
-    for (int i = 0; i < nsamples; ++i) {
-        out[i] = metropolisStep(t, nmoves_per_sample, naccept, f, args...);
+
+    V prevv = f(t);
+    double prevscore = t.score + log(t.nrands);
+    int prev_nrands = t.nrands;
+
+    for (int n = 0; n < nsamples; ++n) {
+
+        for (int i = 0; i < nmoves_per_sample; i++) {
+            assert(t.nrands > 0);
+            // 1. perturb
+            const unsigned int rix = t.nrands > 0 ? (nrand48(t.Xi) % t.nrands) : 0;
+            const double prev_rand_at_rix = t.rands[rix];
+            t.rands[rix] = erand48(t.Xi);
+
+            // 2. sample
+            t.score = 0;
+            t.ix = 0;
+            const V curv = f(t);
+            const double curscore = t.score + log(t.nrands);
+            const double acceptr = log(erand48(t.Xi));
+            // TODO: double-check that this is indeed the correct
+            // sampling criteria
+            // 3. accept
+            if (acceptr < curscore - prevscore) {
+                prevv = curv;
+                prevscore = curscore;
+                prev_nrands = t.nrands;
+                naccept++;
+            } else {
+                // use t = t (old trace)
+                t.nrands = prev_nrands;
+                t.rands[rix] = prev_rand_at_rix;
+            }
+        } // end i
+        
+        out[n] = prevv;
     }
 }
 
