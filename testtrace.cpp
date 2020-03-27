@@ -81,7 +81,9 @@ int plot_gaussian() {
     std::cout << "##Gaussian:##\n";
     double *randmem = new double[MAXRANDS];
     double gs[NSAMPLES];
-    sampleMH<double>(NSAMPLES, NMOVES_PER_SAMPLE, randmem, gs, gaussian);
+
+    unsigned short Xi[3] = {0, 0, 1};
+    sampleMH<double>(NSAMPLES, NMOVES_PER_SAMPLE, Xi, randmem, gs, gaussian);
 
     double gshist[NBINS];
     histogram<double>(gs, NSAMPLES, gshist, NBINS);
@@ -94,7 +96,8 @@ int plot_uniform() {
     std::cout << "##Uniform:##\n";
     double *randmem = new double[MAXRANDS];
     double gs[NSAMPLES];
-    sampleMH<double>(NSAMPLES, NMOVES_PER_SAMPLE, randmem, gs, [](Trace<double> &trace) {
+    unsigned short Xi[3] = {0, 0, 1};
+    sampleMH<double>(NSAMPLES, NMOVES_PER_SAMPLE, Xi, randmem, gs, [](Trace<double> &trace) {
             trace.score = 0; return trace.rand();
             });
 

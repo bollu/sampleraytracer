@@ -118,9 +118,9 @@ int main(int argc, char *argv[]) {
     int w = 512, h = 512,
         samps = argc == 2 ? atoi(argv[1]) : 4;              // # samples
     Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm());  // cam pos, dir
-    Vec cx = Vec(w * .5135 / h), cy = (cx % cam.d).norm() * .5135, r,
+    Vec cx = Vec(w * .5135 / h), cy = (cx % cam.d).norm() * .5135,
         *c = new Vec[w * h];
-#pragma omp parallel for schedule(dynamic, 1) private(r)  // OpenMP
+#pragma omp parallel for schedule(dynamic, 1)  // OpenMP
     for (int y = 0; y < h; y++) {  // Loop over image rows
         fprintf(stderr, "\rRendering (%d spp) %5.2f%%", samps,
                 100. * y / (h - 1));
