@@ -107,7 +107,24 @@ int plot_uniform() {
     return 0;
 }
 
+int plot_modsin() {
+    std::cout << "##|sin|:##\n";
+    double *randmem = new double[MAXRANDS];
+    double gs[NSAMPLES];
+
+    unsigned short Xi[3] = {0, 0, 1};
+    sampleMH<double>(NSAMPLES, NMOVES_PER_SAMPLE, Xi, randmem, gs, 
+            [](Trace<double> &trace) { double r = 20 * trace.rand(); trace.score = fabs(sin(r)); return r; });
+
+    double gshist[NBINS];
+    histogram<double>(gs, NSAMPLES, gshist, NBINS);
+
+    plot(std::cout, gshist, NBINS, 5);
+    return 0;
+}
+
 int main() {
     plot_gaussian();
     plot_uniform();
+    plot_modsin();
 }
