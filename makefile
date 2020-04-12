@@ -57,9 +57,14 @@ traced-mh.out: traced-mh.cpp trace.h
 traced-mh.ppm: traced-mh.out
 	time ./traced-mh.out ${NSAMPS}
 
-testtrace: testtrace.cpp trace.h
-	g++ -g -std=c++14  -fsanitize=address -fsanitize=undefined \
+testtrace: testtrace.cpp trace.h plot.h
+	g++ -g -std=c++14  -fsanitize=address -fsanitize=undefined  -I. \
 		-O0  testtrace.cpp -o testtrace.out
+	./testtrace.out
+
+dhmc: dhmc.cpp plot.h
+	g++ -g -std=c++14  -fsanitize=address -fsanitize=undefined  -I. \
+		-O0  dhmc.cpp -o dhmc.out
 	./testtrace.out
 
 

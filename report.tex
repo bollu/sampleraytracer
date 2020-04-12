@@ -4,10 +4,13 @@
 \newmintinline[cinline]{c}{}
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\R}{\mathbb{R}}
+\newcommand{\I}{\mathbb{I}}
 \renewcommand{\S}{\texttt{S}}
 \newcommand{\xuniform}{\ensuremath{X_{\texttt{uniform}}}}
 \newcommand{\zo}{\{0, 1\}}
 \newcommand{\uniformbool}{\texttt{uniformbool}}
+\newcommand{\p}{\mathbf{p}}
+\newcommand{\q}{\mathbf{q}}
 \title{A detailed reference of MCMC algorithms}
 \author{Siddharth Bhat (20161105) ~ \texttt{siddu.druid@gmail.com}}
 \date{\today}
@@ -70,28 +73,145 @@ Given a weak, simple sampler of the form $\cinline{rand} : S \rightarrow S \time
 build a sampler $\texttt{sampler}(P, X): T \rightarrow T \times X$ which returns
 value distributed according to some distribution of choice $P: X \rightarrow [0, 1]$.
 
-\subsection{Sampling use case 1. simulation}
-\subsection{Sampling use case 2. gradient free optimisation}
-\section{Whirlwind tour of the underpinnings of MCMC sampling}
-Using this, we wish to build a sampler $\cinline{samplerP}: S \rightarrow X \times S$
-which is distributed according to a distribution $P: X \rightarrow [0, 1]$. We
-have access to:
+\subsection{Sampling use case 1. Simulation And Sampling}
+\subsection{Sampling use case 2. Gradient Free Optimisation}
+\subsection{Sampling use case 3. Numerical Integration}
 
+\section{Where it all begins: The Metropolis Hastings sampler}
 
-\begin{itemize}
-    \item $\uniform(\R): S \rightarrow \R \times S$
-    \item $Q: T \rightarrow X \times T$, a sampler for $X$ that returns
-        samplers according to some \emph{unknown} distribution.
-\section{Metropolis-Hastings}
-Assume we wish to sample from some distribution $P: X \rightarrow [0, 1]$.
-We have access to:
-\begin{itemize}
-\end{itemize}
-\section{Low discrepancy sequences}
 \section{Gibbs sampling}
+We wish to sample from a joint distribution $P(X_1, X_2, X_3)$. However, it might
+be far cheaper to sample $P(X_1 | X_2, X_3)$, $P(X_2 | X_1, X_3)$, and
+$P(X_3 | X_1, X_2)$. If it is indeed cheaper, then we can use a Gibbs sampler
+to draw from the actual distribution $P(X_1, X_2, X_3)$ by combining samples
+from the \emph{conditional} distribution cleverly. The code is:
+
+\begin{minted}{py}
+# sampler_x: y, z -> new x
+# sampler_y: x, z -> new y
+# sampler_z: x, y -> new z
+# N: number of iterations.
+# returns: new (x, y, z)
+def sampler_xyz(sampler_x, sampler_y, sampler_z, x0, y0, z0, N):
+    (x, y, z) = (x0, y0, z0)
+    for i in range(N):
+        x = sampler_x(y, z)
+        y = sampler_y(x, z) # NOTE: use *new* x
+        z = sampler_z(x, y) # NOTE: use *new* x, y
+    return (x, y, z)
+\end{minted}
+
 \section{Hamiltonian Monte Carlo}
-\section{No-U-Turn sampling}
-\section{Replica Exchange}
+If our target probability density $P: X \rightarrow [0, 1]$ is \emph{differentiable},
+then we can use the derivative of $P(x)$ to provide better proposals. The idea
+is as follows:
+
+\begin{itemize}
+    \item Interpret the probability landscape as actual terrain, with
+        points of high probability being "valleys" and points of low probability
+        being "peaks" (ie, invert the probability density with a transform
+        such as $terrian(x) = e^{-P(x)}$
+    \item For a proposal at a position $x_0 \in X$, keep a ball at $x_0$,
+        \emph{randomly choose its velocity}, simulate the ball according to 
+        classical mechanics (Newton's laws of motion) for a fixed duration $D \in \R$
+        and propose the final position as the final position of the ball. This
+        is reversible and detail balanced because 
+        \emph{classical mechanics is reversible and detail balanced}.
+\end{itemize}
+We need the derivative of $P(x)$ to be able to simulate the ball according
+to Newton's laws. If we can do this, though, we are able to cover large
+amounts of terrain.
+
+
+\subsection{Newton's laws of motion: Hamilton's equations}
+
+\begin{align*}
+    &\frac{\partial \q}{\partial t} = \frac{\partial H}{\partial \p} \\
+    &\frac{\partial \p}{\partial t} = - \frac{\partial H}{\partial \q}
+\end{align*}
+
+\subsection{Detail balance}
+
+
+
+\subsection{Hamiltonian for our simulation}
+If we have a a target probability distribution $Prob(\q): \R^n \rightarrow \R$
+we choose the Hamiltonian to be $H(\p, \q) \equiv Prob(\q) + \p^T \p/2$.
+
+
+\subsection{Simulation: Naive}
+\subsection{Simulation: Need for symplectic integrators}
+\subsection{Simulation: Final}
+
+
+We no longer need to choose how many steps to walk with a no-U-turn-sampler.
+It prevents us from re-walking energy orbits, by detecting when we have completed
+traversing an orbit and are going to take a "U-turn". The details are quite
+complex, so we may not cover this here.
+
 \section{Discontinuous Hamiltonian monte carlo}
+
+What if our distribution $P$ is \emph{discontinuouse}? How do we perform MCMC
+in that case?
+
+\section{Low discrepancy sequences}
+% https://cseweb.ucsd.edu/~dstefan/pubs/dalal:2008:low.pdf
+% https://openturns.github.io/openturns/master/theory/reliability_sensitivity/low_discrepancy_sequence.html
+Low discrepancy sequences are sequences of numbers that more evenly
+distributed than pseudorandom numbers in high dimensional space. Hence,
+simulations which use Low discrepancy sequences generally approximate
+integrals faster than psuedo-randomly generated points.
+
+Formally, let us consider the $S$ dimensional half-open cube $\I^S \equiv [0, 1)^S$.
+assume we have a set of points $P \subseteq \I^S$, and a sub-interval
+$B \subseteq I^S$, where a sub-interval is a subset of the form 
+$B \equiv \prod_{i=1}^S \{ x \in \I : a_i \leq x \leq b_i \}$.
+
+Given a universe set $X$ and two subsets $Large, Small \subseteq X$, we define
+the amount of containment of $Small$ in $Large$ to be $C(Small, Large) \equiv
+\frac{|Large \cap Small|}{|Large|}$. Intuitively, this measures the fraction
+of $Small$ that is in $Large$. We now define the discrepancy of the set
+of points $P$ relative to the sub-interval $B$ as:
+
+\begin{align*}
+&D(B, P) \equiv \left| C(P, B) - C(B, \I^S) \right| \\
+&= \left| \frac{|B \cap P|}{|P|} - \frac{|B \cap \I^S|}{|\I^S|} \right|  \\
+&= \left| \frac{|B \cap P|}{|P|} - \frac{Volume(B)}{1} \right| \\
+&= \left| \frac{|B \cap P|}{|P|} - Volume(B) \right| \\
+\end{align*}
+
+So, the discrepancy is measuring if $P$ fits within $B$ the way $B$ fits within
+the full space.
+
+Now, the \textbf{worst-case-discrepancy} is defined as the maximum discrepancy
+over all sub-intervals:
+
+$$
+D^\star(P) \equiv \max_{B \in \mathcal{J}} D(B, P)
+$$
+
+where $\mathcal{J} \subseteq 2^{\I^S}$ is the set of all sub-intervals:
+
+$$
+\mathcal{J} \equiv \{ \{ x \in \I^S : l[i] \leq x[i] \leq r[i]~\forall i \} : \vec l, \vec r \in \I^S \}
+$$
+
+The goal is a \emph{low discrepancy sequence} is to minimise the worst-case-discrepancy.
+
+\subsection{Error bounds for Numerical integration}
+
+\subsection{Sobol sequences}
+
+Sobol sequences are an example of low-discrepancy sequences
+
+
+\section{Future Work!}
+I've left the topic names up because they have interesting ideas, which I have
+sketched out in brief. Writing them down formally will take far too long; Hence,
+they've been left here [for the purposes of the project]. I will probably update
+this document even after the project, once I have grokked this material better.
+\section{Slice Sampling}
+\section{No-U-Turn sampling}
+
 \end{document}
 
