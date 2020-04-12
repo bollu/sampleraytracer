@@ -31,3 +31,5 @@ and baseline-xy-randomness.
 convert baseline-same-randomness.ppm baseline-same-randomness.png
 
 https://en.wikipedia.org/wiki/Path_tracing
+
+- https://computergraphics.stackexchange.com/questions/337/radiosity-vs-ray-tracing

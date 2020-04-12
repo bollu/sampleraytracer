@@ -1,0 +1,97 @@
+\documentclass[titlepage]{article}
+\usepackage{amsmath, amssymb}
+\usepackage{minted}
+\newmintinline[cinline]{c}{}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\renewcommand{\S}{\texttt{S}}
+\newcommand{\xuniform}{\ensuremath{X_{\texttt{uniform}}}}
+\newcommand{\zo}{\{0, 1\}}
+\newcommand{\uniformbool}{\texttt{uniformbool}}
+\title{A detailed reference of MCMC algorithms}
+\author{Siddharth Bhat (20161105) ~ \texttt{siddu.druid@gmail.com}}
+\date{\today}
+\begin{document}
+\maketitle
+\section{Why do we need MCMC? A practitioner's perspective}
+Consider that we are plonked down in the \texttt{C } programming language, and
+our only method to generate random numbers is to call \cinline{int rand(void)}.
+However, \emph{the type is a lie}, since we are able to modify global mutable
+state. So, really, to have a mathematical discussion about the whole state
+of affairs, we will write the type of \cinline{rand} as
+$\cinline{rand}: S \rightarrow S \times \cinline{int}$ --- that is,
+it receives the entire state of the program, and then returns the \cinline{int},
+along with the new state of the program.
+$\uniformbool: \S \rightarrow \S \times \zo$.
+
+When we say that \texttt{rand} generates random numbers, we need to be a
+little more specific: what does it mean to generate random numbers? we need to
+describe the \emph{distribution} according to which we are receiving the random
+numbers from the random number generator $rand$.  What does that mean?
+Well, it means that as we generate more numbers, the \emph{empirical distribution}
+of the list of numbers we get from the successive calls to $\uniformbool$ tends
+to some \emph{true distribution}. We will call this \emph{true distribution}
+succincty as \textbf{the} distribution of the random number generator. Formally,
+let us define $F(t) \equiv \int_0^t P(x) dx$ to be the cumulative distribution 
+of $P$.
+
+In the case of 
+$\uniformbool$, we are receiving random numbers according to the distribution:
+$$
+P_{\uniformbool}: \zo \rightarrow [0, 1]; \qquad P_{\uniformbool}(x) = 1/2
+$$
+That is, both $0$ and $1$ are \emph{equally likely}. However, this is
+extremely boring. What we are \emph{usually} interested in is to sample $\{0, 1\}$
+in some \emph{biased} fashion:
+$$
+P_{\uniformbool}^{bias}: \zo \rightarrow [0, 1]; 
+\qquad P_{\uniformbool}^{bias}(0) = bias;
+\qquad P_{\uniformbool}^{bias}(1) = 1 - bias
+$$
+
+And far more generally, we want to sample from \emph{arbitrary domains} with
+\emph{arbitrary distributions}:
+
+$$
+\texttt{sampler}_X^P: S \rightarrow S \times X; 
+$$
+
+This function is boring. What we \emph{really} want to sample from are
+more interesting distributions. For example:
+
+\begin{itemize}
+    \item The normal distribution $P(x: \R) = e^{-x^2}$.
+    \item The poisson distribution $P(x: \N) = e^{-\lambda} \lambda^n/n!$.
+    \item A custom distribution $P(x: \R) = |sin(x)|$.
+\end{itemize}
+
+\subsection{Fundamental Problem of MCMC sampling}
+Given a weak, simple sampler of the form $\cinline{rand} : S \rightarrow S \times \cinline{int}$,
+build a sampler $\texttt{sampler}(P, X): T \rightarrow T \times X$ which returns
+value distributed according to some distribution of choice $P: X \rightarrow [0, 1]$.
+
+\subsection{Sampling use case 1. simulation}
+\subsection{Sampling use case 2. gradient free optimisation}
+\section{Whirlwind tour of the underpinnings of MCMC sampling}
+Using this, we wish to build a sampler $\cinline{samplerP}: S \rightarrow X \times S$
+which is distributed according to a distribution $P: X \rightarrow [0, 1]$. We
+have access to:
+
+
+\begin{itemize}
+    \item $\uniform(\R): S \rightarrow \R \times S$
+    \item $Q: T \rightarrow X \times T$, a sampler for $X$ that returns
+        samplers according to some \emph{unknown} distribution.
+\section{Metropolis-Hastings}
+Assume we wish to sample from some distribution $P: X \rightarrow [0, 1]$.
+We have access to:
+\begin{itemize}
+\end{itemize}
+\section{Low discrepancy sequences}
+\section{Gibbs sampling}
+\section{Hamiltonian Monte Carlo}
+\section{No-U-Turn sampling}
+\section{Replica Exchange}
+\section{Discontinuous Hamiltonian monte carlo}
+\end{document}
+

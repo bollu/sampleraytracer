@@ -1,0 +1,43 @@
+<html>
+<head>
+    <title> Samplers </title>
+    <script>
+        var drawrect = function(ctx, x, y, w, h) { 
+            const HEIGHT = 100; 
+            ctx.fillRect(x, HEIGHT-(y+h), w, HEIGHT-y);
+        }
+
+        var draw = function (curtime) {
+            if (this.prevtime == -1) {
+                this.prevtime = curtime;
+            }
+
+            const delta = curtime - this.prevtime;
+            console.log("drawing, delta: ", delta);
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            const xs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            const ys = [1, 2, 3, 4, 3, 2, 1, 2, 3, 4];
+
+            // this.count = 255 * Math.sin(curtime * 0.001);
+            ctx.fillStyle = 'rgb(' + this.count + ',' + this.count + ',' + this.count + ')';
+            for(var i = 0; i < xs.length; i+=1) {
+                drawrect(ctx, 10*i, 0, 5, 10*ys[i]);
+            }
+
+            this.prevtime = curtime;
+            window.requestAnimationFrame(draw);
+        };
+        draw = draw.bind({ prevtime: -1});
+
+        window.addEventListener('DOMContentLoaded', function() {
+            window.requestAnimationFrame(draw);
+        });
+    </script>
+</head>
+<body>
+    <canvas id="canvas">
+    </canvas>
+</body>
+</html>

@@ -1,5 +1,9 @@
 NSAMPS=128
 
+report.pdf: report.tex
+	latexmk -pdf -shell-escape report.tex && latexmk -c
+
+
 baseline.out: baseline.cpp
 	g++ -O3 -fopenmp baseline.cpp -o baseline.out
 
