@@ -65,6 +65,6 @@ testtrace: testtrace.cpp trace.h plot.h
 dhmc: dhmc.cpp plot.h
 	g++ -g -std=c++14  -fsanitize=address -fsanitize=undefined  -I. \
 		-O0  dhmc.cpp -o dhmc.out
-	./testtrace.out
+	./dhmc.out
 
 

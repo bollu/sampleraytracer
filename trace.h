@@ -1,4 +1,5 @@
 #pragma once
+#include <assert.h>
 #include <math.h>  // smallpt, a Path Tracer by Kevin Beason, 2008
 #include <stdio.h>
 #include <functional>

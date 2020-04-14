@@ -11,6 +11,7 @@
 \newcommand{\uniformbool}{\texttt{uniformbool}}
 \newcommand{\p}{\mathbf{p}}
 \newcommand{\q}{\mathbf{q}}
+\newcommand{\m}{\mathbf{m}}
 \title{A detailed reference of MCMC algorithms}
 \author{Siddharth Bhat (20161105) ~ \texttt{siddu.druid@gmail.com}}
 \date{\today}
@@ -126,8 +127,8 @@ amounts of terrain.
 \subsection{Newton's laws of motion: Hamilton's equations}
 
 \begin{align*}
-    &\frac{\partial \q}{\partial t} = \frac{\partial H}{\partial \p} \\
-    &\frac{\partial \p}{\partial t} = - \frac{\partial H}{\partial \q}
+    \frac{\partial \q}{\partial t} = \frac{\partial H}{\partial \p} \qquad
+    \frac{\partial \p}{\partial t} = - \frac{\partial H}{\partial \q}
 \end{align*}
 
 \subsection{Detail balance}
@@ -153,6 +154,28 @@ complex, so we may not cover this here.
 
 What if our distribution $P$ is \emph{discontinuouse}? How do we perform MCMC
 in that case?
+
+\subsection{Hamilton's equations under laplace momntum}
+
+\begin{align*}
+    \frac{d \q}{dt} = \m^{-1} \odot sign(\p) \qquad \frac{d \p}{dt} = - \nabla_q V(q)
+\end{align*}
+where $\odot$ is component-wise multiplication. If we know that $\p$ does
+not change sign, then our dynamics are correct; This is very different from
+the usual hamilton's equations, where we need to know the \emph{magnitude}
+of $\p$.
+
+So, as long as we know that $\p$ has not changed sign, we can hold $sign(\p)$
+consant and use:
+
+$$
+q(t + \epsilon) = q(t) + \epsilon m^{-1} \odot sign(\p(t))
+$$
+
+Thus, we can jump across multiple discontinuities is $V(q)$ as long as we are
+aware that $sign(p(t))$ does not change.
+
+TODO: write about the sudden drop in U when we cross a barrier.
 
 \section{Low discrepancy sequences}
 % https://cseweb.ucsd.edu/~dstefan/pubs/dalal:2008:low.pdf
