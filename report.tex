@@ -12,6 +12,14 @@
 \newcommand{\p}{\mathbf{p}}
 \newcommand{\q}{\mathbf{q}}
 \newcommand{\m}{\mathbf{m}}
+\renewcommand{\P}{\mathfrak{P}}
+\newcommand{\Prop}{\texttt{Prop}}
+\newcommand{\M}{\mathfrak{M}}
+\newcommand{\K}{\mathfrak{K}}
+\newcommand{\qed}{\ensuremath{\triangle}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proof}{Proof}[theorem]
 \title{A detailed reference of MCMC algorithms}
 \author{Siddharth Bhat (20161105) ~ \texttt{siddu.druid@gmail.com}}
 \date{\today}
@@ -72,13 +80,166 @@ more interesting distributions. For example:
 \subsection{Fundamental Problem of MCMC sampling}
 Given a weak, simple sampler of the form $\cinline{rand} : S \rightarrow S \times \cinline{int}$,
 build a sampler $\texttt{sampler}(P, X): T \rightarrow T \times X$ which returns
-value distributed according to some distribution of choice $P: X \rightarrow [0, 1]$.
+value distributed according to some \emph{un-normalized}
+distribution of choice $P: X \rightarrow \mathbb R$.
+
+The un-normalized constraint is important: it is what allows
+us to exploit MCMC to a wide variety of scienarios.
 
 \subsection{Sampling use case 1. Simulation And Sampling}
+Often, we do really want samples from a particular distribution. For example,
+we might often want to apply Bayes' rule and sample from the posterior
+distribution. Recall the formla:
+
+$$
+P(Y|X) = P(X|Y).P(Y)/P(X)
+$$
+
+
 \subsection{Sampling use case 2. Gradient Free Optimisation}
+We  want to maximize a function $f: X \rightarrow \R$. However, we lack
+gradients for $f$, hence we cannot use techniques such as gradient
+descent, or other techniques from convex optimisation.
+
+In such a case, we can consider $f$ as some sort of unnormalized
+probability distribution, and use MCMC to sample from $f$.
+
+
 \subsection{Sampling use case 3. Numerical Integration}
 
 \section{Where it all begins: The Metropolis Hastings sampler}
+\subsection{The big idea}
+We wish to sample from a distribution $\P$, but we do not know how to do so.
+The idea is that we build a markov chain $M[\P, \Prop]$ where $\P, \Prop$ are
+supplied by the user. We will show that the \emph{stationary distribution} of $M[\P, \Prop]$
+is going to be $\P$. This will ensure that if we interpret \emph{states of $M$} as samples,
+these samples will the distriubted according to $\P$.
+
+\subsection{Detail balance: A tool for proofs}
+We will first require a condition that will enable to rapidly establish that some
+distribution $\P: X \rightarrow \R$ is the stationary distribution of a markov chain $M$. If
+the transition kernel $K: X \times X \rightarrow \R$ of $M \equiv (X, K)$ is such that:
+
+$$
+\forall x, x' \in X, \P(x) K(x, x') = \P(x') K(x', x)
+$$
+
+Then $\P$ is said to be \textbf{detail balanced} with respect to $M$.
+
+\begin{theorem}
+If $\P$ is detail balanced to $M \equiv (X, K: X \rightarrow (X \rightarrow [0, 1])$,
+then $\P$ is the stationary distribution of $M$.
+\end{theorem}
+\begin{proof}
+Let $\P$ be detail balanced to $M$. This means that:
+$$
+\forall x, x' \in X, \P(x) K(x)(x') = \P(x') K(x')(x)
+$$
+
+Let us say say that we are in state $\P$. We wish the find the probability
+distribution after one step of transition. The probability of being
+in some state $x'_0$ is going to be:
+
+$$
+Pnext(x'_0) \equiv \sum_x \P(x) K(x)(x'_0)
+$$
+
+since we have $\P(x)$ probability to be at a given $x$, and
+$K(x, x'_0)$  probability to go from $x$ to $x'_0$. If we add over all possible
+$x \in X$, we get the probability of all states to enter in $x'_0$.
+Manipulating $Pnext$, we get:
+
+\begin{align*}
+&Pnext(x'_0) \equiv \sum_x \P(x) K(x)(x'_0) \\
+&= \sum_x \P(x'_0) K(x'_0)(x) \quad \text{(by detail balance)} \\
+&= \P(x'_0) \sum_x K(x'_0)(x) \quad \text{($P(x_0)$ is constant} \\
+&= \P(x'_0) \cdot 1 \quad \text{($K(x'_0)$ is a distribution which is being summed over)} \\
+&= \P(x'_0) \quad \text{(eliminate multiplication with 1)}
+\end{align*}
+
+Hence, $Pnext(n'_0) = \P(x'_0)$ if $\P$ is the current state, and $\P$
+is in detail balance with the kernel $K$.
+This means that $\P$ is the stationary distribution of $M$.
+\qed
+\end{proof}
+
+\subsection{Metropolis Hastings}
+
+There are three key players in the metropolis hasting sampler:
+\begin{itemize}
+    \item [1] $\P: X \rightarrow \R$: the probability distribution we wish to sample from.
+    \item[2] $\Prop: X \rightarrow (X \rightarrow \R)$. For each $x_0 \in X$,
+        provide a distribution $\Prop(x): X \rightarrow \R$ that is used to
+        sample points around $x_0$.  $\Prop$ for \emph{proposal}.
+    \item [3] $M[\P, \Prop] \equiv (X, K[\P, \Prop]: X \rightarrow \R)$: The
+        Metropolis Markov chain we will sample from, whose stationary distribution is $\P$ ---
+        $M$ for \emph{Markov}.
+\end{itemize}
+
+We want the stationary distribution of $M[\P, \Prop]$ to be $\P$. We also
+wish for $K[\P, \Prop](x_0) \sim \Prop(x_0)$: That is, at a point $x_0$, we want
+to choose new points in a way that is 'controlled' by the proposal distribution
+$\Prop(x_0)$, since this will allow us to 'guide' the markov chain towards regions where $\P$ is high.
+If we had a gradient, then we could use $\P'$ to 'move' from the current point
+$x_0$ to a new point. Since we lack a gradient, we will provide a custom
+$\Prop(x_0)$ for each $x_0$ that will tell us how to pick a new $x'$, in
+a way that will improve $\P$.  So, we tentatively define
+$$K[\P, \Prop](x)(x') \stackrel{?}{\equiv} \Prop(x)(x').$$
+
+Recall that for $\P$ to be a stationary distribution of $K$, it is sufficient
+for $\P$ to be in detail balance for $K$. So, we write:
+
+\begin{align*}
+&\P(x) K(x, x') \stackrel{?}{=}  \P(x') K(x', x) \quad \text{(going forward equally likely as coming back)} \\
+&\P(x) Prop(x)(x') \stackrel{?}{=} \P(x') Prop(x')(x) \quad \text{(this is a hard condition to satisfy)}
+\end{align*}
+
+This is far too complicated a condition to impose on $Prop$ and $\P$, and there
+is no reason for this condition to be satisfied in general. Hence,
+we add a custom "fudge factor" $\alpha \in X \rightarrow (X \rightarrow \R)$
+that tells us how often to transition
+from $x$ to $x'$. We redefine the kernel as:
+
+$$
+K[\P, \Prop](x)(x') \equiv \Prop(x)(x') \alpha(x)(x')
+$$
+
+Redoing detail balance with this new $K$, we get:
+
+\begin{align*}
+&\P(x) K(x, x') \stackrel{?}{=}  \P(x') K(x', x) \quad \text{(going forward equally likely as coming back)} \\
+&\P(x) Prop(x)(x') \alpha(x)(x') = \P(x') Prop(x')(x) \alpha(x')(x) \quad \text{(Fudge a hard condition with $\alpha$)} \\
+&\frac{\alpha(x)(x')}{\alpha(x')(x)} = \frac{\P(x') Prop(x)(x') }{\P(x) Prop(x')(x)} \quad \text{(Find conditions for $\alpha$)}
+\end{align*}
+
+What we have above is a \emph{constraint} for $\alpha$. We now need to \emph{pick}
+an $\alpha$ that satisfies this. A reasonable choice is:
+
+$$ \alpha(x)(x') \equiv   \min\left(1, \frac{\P(x')\Prop(x')(x)}{\P(x)\Prop(x)(x')} \right) $$.
+
+since $K$ is a transition kernel, we canot have its entries be greater tha n $1$.
+Hence, we choose to clamp it with a $\min(1, \cdot)$. This finally gives us the kernel as:
+\begin{align*}
+&K[\P, \Prop](x)(x') \equiv \Prop(x)(x') \alpha(x)(x') \\
+&K[\P, \Prop](x)(x') = \Prop(x)(x') \min\left(1, \frac{\P(x')\Prop(x')(x)}{\P(x)\Prop(x)(x')} \right) \\
+&K[\P, \Prop](x)(x') =   \min\left(\Prop(x)(x'), \frac{\P(x')\Prop(x')(x)}{\P(x)} \right) \\
+\end{align*}
+
+We can make sure that detail balance is satisfied:
+
+\begin{align*}
+&\P(x) K[\P, \Prop](x)(x') \stackrel{?}{=} \P(x')K[\P, \Prop](x')(x) \\
+%
+&\P(x)  \min\left(\Prop(x)(x'), \frac{\P(x')\Prop(x')(x)}{\P(x)} \right) \stackrel{?}{=}
+\P(x')  \min\left(\Prop(x')(x), \frac{\P(x)\Prop(x)(x')}{\P(x')} \right) \\
+%
+&\min\left(\P(x)\Prop(x)(x'), \P(x) \frac{\P(x')\Prop(x')(x)}{\P(x)} \right) \stackrel{?}{=}
+\min\left(\P(x') \Prop(x')(x), \P(x') \frac{\P(x)\Prop(x)(x')}{\P(x')} \right) \\
+%
+&\min\left(\P(x)\Prop(x)(x'), \P(x')\Prop(x')(x) \right) {=}
+\min\left(\P(x')\Prop(x')(x), \P(x)\Prop(x)(x') \right)
+\end{align*}
+
 
 \section{Gibbs sampling}
 We wish to sample from a joint distribution $P(X_1, X_2, X_3)$. However, it might
@@ -102,7 +263,27 @@ def sampler_xyz(sampler_x, sampler_y, sampler_z, x0, y0, z0, N):
     return (x, y, z)
 \end{minted}
 
+\subsection{Gibbs sampling maintains detail balance}
+% https://stats.stackexchange.com/questions/118442/does-the-gibbs-sampling-algorithm-guarantee-detailed-balance
+Consider a two-variate state where we sample the first variable from its conditional distribution.
+A move between  $(x_1, x_2)$ and $(y_1, y_2)$ has zero probability in both directions
+if $x_2\neq y_2$, and thus detail balance automatically holds. If $x_2 = y_2$, then
+we can consider:
+
+\begin{align*}
+&\pi(x_1, x_2)  Prob((x_1, x_2) \rightarrow (y_1, x_2)) \\
+&= \pi(x_1, x_2) p(y_1 | X_2 = x_2) \\
+&= \pi(x_1, x_2) \frac{\pi(y_1, x_2)}{\sum_z \pi(z, x_2)} \\
+&= \pi(y_1, x_2) \frac{\pi(x_1, x_2)}{\sum_z \pi(z, x_2)} \quad \text{[move $(y_1, x_2)$ from the fraction outside]} \\
+&=\pi(y_1, x_2) p(x_1 | X_2 = x_2) \\
+&= \pi(y_1, x_2) Prob((y_1, x_2) \rightarrow (x_1, x_2))
+\end{align*}
+
 \section{Hamiltonian Monte Carlo}
+% https://www.cs.toronto.edu/~radford/ftp/ham-mcmc.pdf
+% http://www.mcmchandbook.net/HandbookChapter5.pdf
+% https://arxiv.org/pdf/1701.02434.pdf
+
 If our target probability density $P: X \rightarrow [0, 1]$ is \emph{differentiable},
 then we can use the derivative of $P(x)$ to provide better proposals. The idea
 is as follows:
@@ -131,8 +312,24 @@ amounts of terrain.
     \frac{\partial \p}{\partial t} = - \frac{\partial H}{\partial \q}
 \end{align*}
 
+In our case, the choice of the hamiltonian will consider the negative-log-probability-density
+to be the \emph{energy}. So, higher probability has lower energy. We know that
+particles like to go towards lower energy states.
+
+$$
+H(\q, \p) \equiv  U(\q) + K(\p) \quad K(\p) \equiv p^T M^{-1} p/2
+$$
+
+where $M$ is a symmetric positive-definite matrix known as a ``mass matrix''.
+
+
+\subsection{Reversibility}
+
 \subsection{Detail balance}
 
+We wish to show that:
+
+$\pi(\p, \q) P((\p, \q) \rightarrow (\p', \q')) = \pi(\p', \q') P((\p', \q') \rightarrow (\p, \q))$
 
 
 \subsection{Hamiltonian for our simulation}
@@ -234,6 +431,7 @@ sketched out in brief. Writing them down formally will take far too long; Hence,
 they've been left here [for the purposes of the project]. I will probably update
 this document even after the project, once I have grokked this material better.
 \section{Slice Sampling}
+
 \section{No-U-Turn sampling}
 
 \end{document}
