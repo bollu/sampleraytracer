@@ -228,18 +228,54 @@ Hence, we choose to clamp it with a $\min(1, \cdot)$. This finally gives us the 
 We can make sure that detail balance is satisfied:
 
 \begin{align*}
-&\P(x) K[\P, \Prop](x)(x') \stackrel{?}{=} \P(x')K[\P, \Prop](x')(x) \\
-%
-&\P(x)  \min\left(\Prop(x)(x'), \frac{\P(x')\Prop(x')(x)}{\P(x)} \right) \stackrel{?}{=}
-\P(x')  \min\left(\Prop(x')(x), \frac{\P(x)\Prop(x)(x')}{\P(x')} \right) \\
-%
-&\min\left(\P(x)\Prop(x)(x'), \P(x) \frac{\P(x')\Prop(x')(x)}{\P(x)} \right) \stackrel{?}{=}
-\min\left(\P(x') \Prop(x')(x), \P(x') \frac{\P(x)\Prop(x)(x')}{\P(x')} \right) \\
-%
-&\min\left(\P(x)\Prop(x)(x'), \P(x')\Prop(x')(x) \right) {=}
-\min\left(\P(x')\Prop(x')(x), \P(x)\Prop(x)(x') \right)
+&\P(x) K[\P, \Prop](x)(x') =\P(x)  \min\left(\Prop(x)(x'), \frac{\P(x')\Prop(x')(x)}{\P(x)} \right) \\
+&= \min\left(\P(x)\Prop(x)(x'), \P(x) \frac{\P(x')\Prop(x')(x)}{\P(x)} \right) \\
+&=  \min\left(\P(x)\Prop(x)(x'), \P(x')\Prop(x')(x) \right)
 \end{align*}
 
+Note that the above right-hand-side is symmetric in $x$ and $x'$, and hence
+we can state that:
+\begin{align*}
+&\P(x) K[\P, \Prop](x)(x') = \min\left(\P(x)\Prop(x)(x'), \P(x')\Prop(x')(x) \right) =
+ \P(x') K[\P, \Prop](x')(x) 
+\end{align*}
+
+Hence, we can wrap up, stating that our design of $K$ does indeed give us a
+markov chain whose stationary distribution is $\P$, since $\P$ is detail
+balanced with $K[\P, \Prop]$. As an upshot, we also gained a level of control
+with $\Prop$, where we are able to provide "good" samples for a given point.
+
+\subsection{Simplification when proposal is symmetric}
+If our function $\Prop$ is symmetric: $\forall x, x' \Prop(x)(x') = \Prop(x')(x)$,
+then a lot of the above derivation becomes much simpler. We will perform those
+simplifications here for pedagogy.
+
+
+\subsubsection{code}
+
+\begin{minted}{py}
+TODO
+\end{minted}
+
+When we have $\Prop(x)(x') = \Prop(x')(x)$, we can simply $\alpha$:
+
+\begin{align*}
+&\alpha(x)(x') \equiv   \min\left(1, \frac{\P(x')\Prop(x')(x)}{\P(x)\Prop(x)(x')} \right) \\
+&\alpha(x)(x') = \min\left(1, \frac{\P(x')}{\P(x)} \right) \quad \text{[cancelling: $\Prop(x)(x') = \Prop(x')(x)$]}\\ 
+\end{align*}
+
+This also makes the kernel look a lot more pleasing:
+
+\begin{align*}
+&K[\P, \Prop](x)(x') \equiv \Prop(x)(x') \alpha(x)(x') \\
+&K[\P, \Prop](x)(x') = \Prop(x)(x') \min\left(1, \frac{\P(x')}{\P(x)} \right) 
+\end{align*}
+
+\subsubsection{code}
+
+\begin{minted}{py}
+TODO
+\end{minted}
 
 \section{Gibbs sampling}
 We wish to sample from a joint distribution $P(X_1, X_2, X_3)$. However, it might
