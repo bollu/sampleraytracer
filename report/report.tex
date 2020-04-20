@@ -1,6 +1,7 @@
 \documentclass[titlepage]{article}
 \usepackage{amsmath, amssymb}
 \usepackage{minted}
+\usepackage{graphicx}
 \newmintinline[cinline]{c}{}
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\R}{\mathbb{R}}
@@ -251,12 +252,6 @@ then a lot of the above derivation becomes much simpler. We will perform those
 simplifications here for pedagogy.
 
 
-\subsubsection{code}
-
-\begin{minted}{py}
-TODO
-\end{minted}
-
 When we have $\Prop(x)(x') = \Prop(x')(x)$, we can simply $\alpha$:
 
 \begin{align*}
@@ -271,10 +266,25 @@ This also makes the kernel look a lot more pleasing:
 &K[\P, \Prop](x)(x') = \Prop(x)(x') \min\left(1, \frac{\P(x')}{\P(x)} \right) 
 \end{align*}
 
+\newpage
 \subsubsection{code}
 
 \begin{minted}{py}
-TODO
+# prob is the distribution to sample from;
+# symproposal is the *symmetric* proposal function
+# symproposal: X -> X; produces a new 'X' from a 
+#              given 'X' with some distribution.
+# prob: X -> |R: gives probability of point 'xi'.
+# N: number of markov chain walks before returning a new sample.
+def metropolis_hastings(prob, symproposal, x0, N):
+  x = x0
+  while True:
+    for i in range(N):
+      # xnext chosen with Prop(x)(x') prob.
+      xnext = symproposal(x); px = prob(x); pxnext = prob(xnext);
+      # x' chosen with Prop(x)(x') * alpha prob.
+      r = uniform01(); alpha = min(1, pxnext / px); if r < alpha: x = xnext
+    yield x
 \end{minted}
 
 \section{Gibbs sampling}
@@ -284,20 +294,6 @@ $P(X_3 | X_1, X_2)$. If it is indeed cheaper, then we can use a Gibbs sampler
 to draw from the actual distribution $P(X_1, X_2, X_3)$ by combining samples
 from the \emph{conditional} distribution cleverly. The code is:
 
-\begin{minted}{py}
-# sampler_x: y, z -> new x
-# sampler_y: x, z -> new y
-# sampler_z: x, y -> new z
-# N: number of iterations.
-# returns: new (x, y, z)
-def sampler_xyz(sampler_x, sampler_y, sampler_z, x0, y0, z0, N):
-    (x, y, z) = (x0, y0, z0)
-    for i in range(N):
-        x = sampler_x(y, z)
-        y = sampler_y(x, z) # NOTE: use *new* x
-        z = sampler_z(x, y) # NOTE: use *new* x, y
-    return (x, y, z)
-\end{minted}
 
 \subsection{Gibbs sampling maintains detail balance}
 % https://stats.stackexchange.com/questions/118442/does-the-gibbs-sampling-algorithm-guarantee-detailed-balance
@@ -305,6 +301,7 @@ Consider a two-variate state where we sample the first variable from its conditi
 A move between  $(x_1, x_2)$ and $(y_1, y_2)$ has zero probability in both directions
 if $x_2\neq y_2$, and thus detail balance automatically holds. If $x_2 = y_2$, then
 we can consider:
+
 
 \begin{align*}
 &\pi(x_1, x_2)  Prob((x_1, x_2) \rightarrow (y_1, x_2)) \\
@@ -315,20 +312,39 @@ we can consider:
 &= \pi(y_1, x_2) Prob((y_1, x_2) \rightarrow (x_1, x_2))
 \end{align*}
 
+\subsection{code}
+\begin{minted}{py}
+# sampler_x: y, z -> new x
+# sampler_y: x, z -> new y
+# sampler_z: x, y -> new z
+# N: number of iterations.
+# returns: a generator of the new (x, y, z)
+def sampler_xyz(sampler_x, sampler_y, sampler_z, x0, y0, z0, N):
+    (x, y, z) = (x0, y0, z0)
+    while True:
+      for i in range(N):
+        x = sampler_x(y, z)
+        y = sampler_y(x, z) # NOTE: use *new* x
+        z = sampler_z(x, y) # NOTE: use *new* x, y
+      yield (x, y, z)
+\end{minted}
+
 \section{Hamiltonian Monte Carlo}
 % https://www.cs.toronto.edu/~radford/ftp/ham-mcmc.pdf
 % http://www.mcmchandbook.net/HandbookChapter5.pdf
 % https://arxiv.org/pdf/1701.02434.pdf
 
-If our target probability density $P: X \rightarrow [0, 1]$ is \emph{differentiable},
-then we can use the derivative of $P(x)$ to provide better proposals. The idea
+If our target probability density $\P: X \rightarrow [0, 1]$ is \emph{differentiable},
+then we can use the derivative of $\P(x)$ to provide better proposals. The idea
 is as follows:
 
 \begin{itemize}
-    \item Interpret the probability landscape as actual terrain, with
+    \item Interpret the probability landscape as a potential, with
         points of high probability being "valleys" and points of low probability
         being "peaks" (ie, invert the probability density with a transform
-        such as $terrian(x) = e^{-P(x)}$
+        such as $U[\P](x) = e^{-\P(x)}$. This way, a ball rolling on this
+        terrain will try to move towards the valleys --- which are the locations
+        of high probability $\P$.
     \item For a proposal at a position $x_0 \in X$, keep a ball at $x_0$,
         \emph{randomly choose its velocity}, simulate the ball according to 
         classical mechanics (Newton's laws of motion) for a fixed duration $D \in \R$
@@ -336,7 +352,7 @@ is as follows:
         is reversible and detail balanced because 
         \emph{classical mechanics is reversible and detail balanced}.
 \end{itemize}
-We need the derivative of $P(x)$ to be able to simulate the ball according
+We need the derivative of $\P(x)$ to be able to simulate the ball according
 to Newton's laws. If we can do this, though, we are able to cover large
 amounts of terrain.
 
@@ -352,20 +368,28 @@ In our case, the choice of the hamiltonian will consider the negative-log-probab
 to be the \emph{energy}. So, higher probability has lower energy. We know that
 particles like to go towards lower energy states.
 
-$$
-H(\q, \p) \equiv  U(\q) + K(\p) \quad K(\p) \equiv p^T M^{-1} p/2
-$$
+$$ H(\q, \p) \equiv  U(\q) + K(\p) \quad K(\p) \equiv \p^T M^{-1} \p/2 $$
 
 where $M$ is a symmetric positive-definite matrix known as a ``mass matrix''.
 
 
-\subsection{Reversibility}
+\subsection{Modifying Hamilton's equations for generating proposals}
 
-\subsection{Detail balance}
+We wish to maximize $\P(x)$. To do this, we will consider a new energy 
+function $U[\P](x) \equiv e^{-\P(x)}$. When $U[\P] = e^{-U[\P](x)}$
+is minimized, then $\P(x)$ will be maximized.
 
-We wish to show that:
+We use the proposal function as:
+\begin{itemize}
+    \item We are currently at the location $\q_0$.
+    \item Pick a uniform randomly momentum $\p$.
+    \item Simulate the system according to the differential equations mentioned
+        above, to produce a new $(\q', \p')$.
+    \item Use this $(\q', \p')$ as the proposed point from the proposal.
+    \item Use metropolis-hastings accept-reject.
+\end{itemize}
 
-$\pi(\p, \q) P((\p, \q) \rightarrow (\p', \q')) = \pi(\p', \q') P((\p', \q') \rightarrow (\p, \q))$
+
 
 
 \subsection{Hamiltonian for our simulation}
@@ -373,8 +397,47 @@ If we have a a target probability distribution $Prob(\q): \R^n \rightarrow \R$
 we choose the Hamiltonian to be $H(\p, \q) \equiv Prob(\q) + \p^T \p/2$.
 
 
-\subsection{Simulation: Naive}
-\subsection{Simulation: Need for symplectic integrators}
+\subsection{Simulation: Euler integration}
+Unfortunately, it turns out that running this simulation is in fact numerically
+unstable on using a naive simulation schemes. For example, let us say
+that we wish to simulate the orbit of a planet. Recall that we want
+the proposal to be symmetric: so, if we simulate the trajectory of the planet
+for $N$ timesteps, each timestep of time $\delta t$, and then \emph{reverse}
+the momentum of the planet, run the next phse of the simulation for $N$ timesteps
+with timestep $\delta t$, we should begin where we started. 
+
+on attempting to plot the orbit of a planet with somewhat large step-size, here is the
+output we see:
+
+\includegraphics[width=\textwidth/2]{./euler-dt-1.png}
+
+We might suspect that this is because of the relative high step size. So,
+let us crank down the step size to be $\texttt{1e-2} = 0.01$. We can
+plot our euler integrator for more iterations, to notice that we are still spiralling out:
+
+\includegraphics[width=\textwidth/2]{./euler-dt-1e-2.png}
+
+Indeed, this is a \textbf{fundamental limitation of euler integration}.
+Hence, we will need to explore more refined integration schemes.
+
+\subsection{Simulation: Symplectic integrator}
+
+The type of integrators that will allow us to get 'reasonable orbits' that
+do not decay with time are knows as \emph{symplectic integrators}.
+(An aside: the word \emph{symplectic} comes from Weyl, who substituted
+the latin root in the word \emph{complex} by the corresponding greek root.
+It is a branch of differential geometry which formalizes the consructs
+needed to carry out hamiltonian mechanics on spaces that are more complicated
+that Euclidian $\R^n$).
+
+
+\includegraphics[width=\textwidth/2]{./leapfrog-dt-1.png}
+\includegraphics[width=\textwidth/2]{./leapfrog-dt-1e-2.png}
+
+It is clear from the plots that the leapfrog integrator is stable: orbits
+stay as orbits. 
+
+
 \subsection{Simulation: Final}
 
 
