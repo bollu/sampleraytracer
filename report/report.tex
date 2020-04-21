@@ -2,6 +2,10 @@
 \usepackage{amsmath, amssymb}
 \usepackage{minted}
 \usepackage{graphicx}
+\usepackage[colorlinks=true]{hyperref}
+
+
+
 \newmintinline[cinline]{c}{}
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\R}{\mathbb{R}}
@@ -12,6 +16,8 @@
 \newcommand{\uniformbool}{\texttt{uniformbool}}
 \newcommand{\p}{\mathbf{p}}
 \newcommand{\q}{\mathbf{q}}
+
+
 \newcommand{\m}{\mathbf{m}}
 \renewcommand{\P}{\mathfrak{P}}
 \newcommand{\Prop}{\texttt{Prop}}
@@ -26,57 +32,62 @@
 \date{\today}
 \begin{document}
 \maketitle
-\section{Why do we need MCMC? A practitioner's perspective}
-Consider that we are plonked down in the \texttt{C } programming language, and
-our only method to generate random numbers is to call \cinline{int rand(void)}.
-However, \emph{the type is a lie}, since we are able to modify global mutable
-state. So, really, to have a mathematical discussion about the whole state
-of affairs, we will write the type of \cinline{rand} as
-$\cinline{rand}: S \rightarrow S \times \cinline{int}$ --- that is,
-it receives the entire state of the program, and then returns the \cinline{int},
-along with the new state of the program.
-$\uniformbool: \S \rightarrow \S \times \zo$.
 
-When we say that \texttt{rand} generates random numbers, we need to be a
-little more specific: what does it mean to generate random numbers? we need to
-describe the \emph{distribution} according to which we are receiving the random
-numbers from the random number generator $rand$.  What does that mean?
-Well, it means that as we generate more numbers, the \emph{empirical distribution}
-of the list of numbers we get from the successive calls to $\uniformbool$ tends
-to some \emph{true distribution}. We will call this \emph{true distribution}
-succincty as \textbf{the} distribution of the random number generator. Formally,
-let us define $F(t) \equiv \int_0^t P(x) dx$ to be the cumulative distribution 
-of $P$.
+\section{Introduction}
 
-In the case of 
-$\uniformbool$, we are receiving random numbers according to the distribution:
-$$
-P_{\uniformbool}: \zo \rightarrow [0, 1]; \qquad P_{\uniformbool}(x) = 1/2
-$$
-That is, both $0$ and $1$ are \emph{equally likely}. However, this is
-extremely boring. What we are \emph{usually} interested in is to sample $\{0, 1\}$
-in some \emph{biased} fashion:
-$$
-P_{\uniformbool}^{bias}: \zo \rightarrow [0, 1]; 
-\qquad P_{\uniformbool}^{bias}(0) = bias;
-\qquad P_{\uniformbool}^{bias}(1) = 1 - bias
-$$
+All the code for this project (including code to generate the report and
+its graphs) can be found at \url{https://github.com/bollu/sampleraytracer}.
 
-And far more generally, we want to sample from \emph{arbitrary domains} with
-\emph{arbitrary distributions}:
-
-$$
-\texttt{sampler}_X^P: S \rightarrow S \times X; 
-$$
-
-This function is boring. What we \emph{really} want to sample from are
-more interesting distributions. For example:
-
-\begin{itemize}
-    \item The normal distribution $P(x: \R) = e^{-x^2}$.
-    \item The poisson distribution $P(x: \N) = e^{-\lambda} \lambda^n/n!$.
-    \item A custom distribution $P(x: \R) = |sin(x)|$.
-\end{itemize}
+% Consider that we are plonked down in the \texttt{C } programming language, and
+% our only method to generate random numbers is to call \cinline{int rand(void)}.
+% However, \emph{the type is a lie}, since we are able to modify global mutable
+% state. So, really, to have a mathematical discussion about the whole state
+% of affairs, we will write the type of \cinline{rand} as
+% $\cinline{rand}: S \rightarrow S \times \cinline{int}$ --- that is,
+% it receives the entire state of the program, and then returns the \cinline{int},
+% along with the new state of the program.
+% $\uniformbool: \S \rightarrow \S \times \zo$.
+% 
+% When we say that \texttt{rand} generates random numbers, we need to be a
+% little more specific: what does it mean to generate random numbers? we need to
+% describe the \emph{distribution} according to which we are receiving the random
+% numbers from the random number generator $rand$.  What does that mean?
+% Well, it means that as we generate more numbers, the \emph{empirical distribution}
+% of the list of numbers we get from the successive calls to $\uniformbool$ tends
+% to some \emph{true distribution}. We will call this \emph{true distribution}
+% succincty as \textbf{the} distribution of the random number generator. Formally,
+% let us define $F(t) \equiv \int_0^t P(x) dx$ to be the cumulative distribution 
+% of $P$.
+% 
+% In the case of 
+% $\uniformbool$, we are receiving random numbers according to the distribution:
+% $$
+% P_{\uniformbool}: \zo \rightarrow [0, 1]; \qquad P_{\uniformbool}(x) = 1/2
+% $$
+% That is, both $0$ and $1$ are \emph{equally likely}. However, this is
+% extremely boring. What we are \emph{usually} interested in is to sample $\{0, 1\}$
+% in some \emph{biased} fashion:
+% $$
+% P_{\uniformbool}^{bias}: \zo \rightarrow [0, 1]; 
+% \qquad P_{\uniformbool}^{bias}(0) = bias;
+% \qquad P_{\uniformbool}^{bias}(1) = 1 - bias
+% $$
+% 
+% And far more generally, we want to sample from \emph{arbitrary domains} with
+% \emph{arbitrary distributions}:
+% 
+% $$
+% \texttt{sampler}_X^P: S \rightarrow S \times X; 
+% $$
+% 
+% This function is boring. What we \emph{really} want to sample from are
+% more interesting distributions. For example:
+% 
+% \begin{itemize}
+%     \item The normal distribution $P(x: \R) = e^{-x^2}$.
+%     \item The poisson distribution $P(x: \N) = e^{-\lambda} \lambda^n/n!$.
+%     \item A custom distribution $P(x: \R) = |sin(x)|$.
+% \end{itemize}
 
 \subsection{Fundamental Problem of MCMC sampling}
 Given a weak, simple sampler of the form $\cinline{rand} : S \rightarrow S \times \cinline{int}$,
@@ -267,8 +278,8 @@ This also makes the kernel look a lot more pleasing:
 \end{align*}
 
 \newpage
-\subsubsection{code}
 
+{\footnotesize
 \begin{minted}{py}
 # prob is the distribution to sample from;
 # symproposal is the *symmetric* proposal function
@@ -286,48 +297,114 @@ def metropolis_hastings(prob, symproposal, x0, N):
       r = uniform01(); alpha = min(1, pxnext / px); if r < alpha: x = xnext
     yield x
 \end{minted}
+}
 
-\section{Gibbs sampling}
-We wish to sample from a joint distribution $P(X_1, X_2, X_3)$. However, it might
-be far cheaper to sample $P(X_1 | X_2, X_3)$, $P(X_2 | X_1, X_3)$, and
-$P(X_3 | X_1, X_2)$. If it is indeed cheaper, then we can use a Gibbs sampler
-to draw from the actual distribution $P(X_1, X_2, X_3)$ by combining samples
-from the \emph{conditional} distribution cleverly. The code is:
+\subsection{Implementing MH: Devil in the Details}
 
+\subsubsection{Naive implementation}
 
-\subsection{Gibbs sampling maintains detail balance}
-% https://stats.stackexchange.com/questions/118442/does-the-gibbs-sampling-algorithm-guarantee-detailed-balance
-Consider a two-variate state where we sample the first variable from its conditional distribution.
-A move between  $(x_1, x_2)$ and $(y_1, y_2)$ has zero probability in both directions
-if $x_2\neq y_2$, and thus detail balance automatically holds. If $x_2 = y_2$, then
-we can consider:
+Let us try to transcribe the equations we have derived for symmetric proposal
+into code, and see what happens. Let us choose $\P(x) \equiv \texttt{normal}(0, 1) = e^{-x*x}$
+and the proposal function to be $P(x_0)(x) = \texttt{normal}(x_0, \texttt{1e-2})$
+is, a Gaussian centered around $x_0$ with standard deviation \texttt{1e-2}.
+This gives us the code:
 
-
-\begin{align*}
-&\pi(x_1, x_2)  Prob((x_1, x_2) \rightarrow (y_1, x_2)) \\
-&= \pi(x_1, x_2) p(y_1 | X_2 = x_2) \\
-&= \pi(x_1, x_2) \frac{\pi(y_1, x_2)}{\sum_z \pi(z, x_2)} \\
-&= \pi(y_1, x_2) \frac{\pi(x_1, x_2)}{\sum_z \pi(z, x_2)} \quad \text{[move $(y_1, x_2)$ from the fraction outside]} \\
-&=\pi(y_1, x_2) p(x_1 | X_2 = x_2) \\
-&= \pi(y_1, x_2) Prob((y_1, x_2) \rightarrow (x_1, x_2))
-\end{align*}
-
-\subsection{code}
+{\footnotesize
 \begin{minted}{py}
-# sampler_x: y, z -> new x
-# sampler_y: x, z -> new y
-# sampler_z: x, y -> new z
-# N: number of iterations.
-# returns: a generator of the new (x, y, z)
-def sampler_xyz(sampler_x, sampler_y, sampler_z, x0, y0, z0, N):
-    (x, y, z) = (x0, y0, z0)
-    while True:
-      for i in range(N):
-        x = sampler_x(y, z)
-        y = sampler_y(x, z) # NOTE: use *new* x
-        z = sampler_z(x, y) # NOTE: use *new* x, y
-      yield (x, y, z)
+#  mcmc1d.py
+def mhsimple(x0, prob, prop):
+    yield x0; x = x0;
+    while true:
+        xnext = prop(x); p = prob(x); pnext = prob(xnext)
+        r = np.random.uniform() + 1e-5;
+        if r < pnext/p: x = xnext
+        yield xnext
+...
+def exp(x): return np.exp(-x*x)
+def expprop(x): return np.random.normal(loc=x, scale=1e-1)
+...
+nsamples = 1000
+xs = list(itertools.islice(mhsimple(0, exp, expprop), nsamples))
 \end{minted}
+}
+
+\includegraphics[width=\textwidth]{mcmc-mh-simple-1d-exp.png}
+
+We can see from the plots of the raw samples and the cumulative distribution
+that we wind up overshooting. This is because the markov chain, by definition,
+has correlations between samples; However, we are supposed to be drawing
+\emph{independent} samples from $\P$ for plotting/downstream use.
+
+\subsubsection{Sampling per \texttt{iters\_per\_sample} steps}
+
+The solution is to take samples that are \emph{spaced out} --- that is,
+we do not consider each step from the markov chain as a sample. Rather,
+we consider the state we are in after some \texttt{iters\_per\_sample} steps to be a sample.
+In code, this is now:
+
+{\footnotesize
+\begin{minted}{py}
+#  mcmc1d.py
+def mh_uncorr(x0, prob, prop, iters_per_sample):
+    yield x0; x = x0;
+    while True:
+        for i in range(iters_per_sample):
+            xnext = prop(x); p = prob(x); pnext = prob(xnext)
+            r = np.random.uniform() + 1e-5;
+            if r < min(1, pnext/p): x = xnext
+        yield xnext
+...
+def exp(x): return np.exp(-x*x)
+def expprop(x): return np.random.normal(loc=x, scale=1e-1)
+...
+NSAMPLES = 1000; ITERS_PER_SAMPLE = 20
+xs = list(itertools.islice(mhsimple(0, exp, expprop, ITERS_PER_SAMPLE), NSAMPLES))
+\end{minted}
+}
+
+\includegraphics[width=\textwidth]{mcmc-mh-uncorr-1d-exp.png}
+
+% \section{Gibbs sampling}
+% We wish to sample from a joint distribution $P(X_1, X_2, X_3)$. However, it might
+% be far cheaper to sample $P(X_1 | X_2, X_3)$, $P(X_2 | X_1, X_3)$, and
+% $P(X_3 | X_1, X_2)$. If it is indeed cheaper, then we can use a Gibbs sampler
+% to draw from the actual distribution $P(X_1, X_2, X_3)$ by combining samples
+% from the \emph{conditional} distribution cleverly. The code is:
+% 
+% 
+% \subsection{Gibbs sampling maintains detail balance}
+% % https://stats.stackexchange.com/questions/118442/does-the-gibbs-sampling-algorithm-guarantee-detailed-balance
+% Consider a two-variate state where we sample the first variable from its conditional distribution.
+% A move between  $(x_1, x_2)$ and $(y_1, y_2)$ has zero probability in both directions
+% if $x_2\neq y_2$, and thus detail balance automatically holds. If $x_2 = y_2$, then
+% we can consider:
+% 
+% 
+% \begin{align*}
+% &\pi(x_1, x_2)  Prob((x_1, x_2) \rightarrow (y_1, x_2)) \\
+% &= \pi(x_1, x_2) p(y_1 | X_2 = x_2) \\
+% &= \pi(x_1, x_2) \frac{\pi(y_1, x_2)}{\sum_z \pi(z, x_2)} \\
+% &= \pi(y_1, x_2) \frac{\pi(x_1, x_2)}{\sum_z \pi(z, x_2)} \quad \text{[move $(y_1, x_2)$ from the fraction outside]} \\
+% &=\pi(y_1, x_2) p(x_1 | X_2 = x_2) \\
+% &= \pi(y_1, x_2) Prob((y_1, x_2) \rightarrow (x_1, x_2))
+% \end{align*}
+% 
+% \subsection{code}
+% \begin{minted}{py}
+% # sampler_x: y, z -> new x
+% # sampler_y: x, z -> new y
+% # sampler_z: x, y -> new z
+% # N: number of iterations.
+% # returns: a generator of the new (x, y, z)
+% def sampler_xyz(sampler_x, sampler_y, sampler_z, x0, y0, z0, N):
+%     (x, y, z) = (x0, y0, z0)
+%     while True:
+%       for i in range(N):
+%         x = sampler_x(y, z)
+%         y = sampler_y(x, z) # NOTE: use *new* x
+%         z = sampler_z(x, y) # NOTE: use *new* x, y
+%       yield (x, y, z)
+% \end{minted}
 
 \section{Hamiltonian Monte Carlo}
 % https://www.cs.toronto.edu/~radford/ftp/ham-mcmc.pdf
@@ -450,7 +527,13 @@ def leapfrog(dhdp, dhdq, q0, p0, dt):
 
 It is clear from the plots that the leapfrog integrator is stable: orbits
 stay as orbits. Indeed, we can prove the symplecticity/energy-preserving
-property of this integrator:
+property of this integrator.
+
+\subsection{Proof that leapfrog is symplectic}
+% http://physics.ucsc.edu/~peter/242/leapfrog.pdf
+
+We will show that in phase space, the leapfrog integrator preserves infinitesimal
+volumes of the form $dV \equiv d\p \times d\q$.
 
 
 \subsection{Simulation: Final}
@@ -461,92 +544,92 @@ It prevents us from re-walking energy orbits, by detecting when we have complete
 traversing an orbit and are going to take a "U-turn". The details are quite
 complex, so we may not cover this here.
 
-\section{Discontinuous Hamiltonian monte carlo}
+% \section{Discontinuous Hamiltonian monte carlo}
+% 
+% What if our distribution $P$ is \emph{discontinuouse}? How do we perform MCMC
+% in that case?
+% 
+% \subsection{Hamilton's equations under laplace momntum}
+% 
+% \begin{align*}
+%     \frac{d \q}{dt} = \m^{-1} \odot sign(\p) \qquad \frac{d \p}{dt} = - \nabla_q V(q)
+% \end{align*}
+% where $\odot$ is component-wise multiplication. If we know that $\p$ does
+% not change sign, then our dynamics are correct; This is very different from
+% the usual hamilton's equations, where we need to know the \emph{magnitude}
+% of $\p$.
+% 
+% So, as long as we know that $\p$ has not changed sign, we can hold $sign(\p)$
+% consant and use:
+% 
+% $$
+% q(t + \epsilon) = q(t) + \epsilon m^{-1} \odot sign(\p(t))
+% $$
+% 
+% Thus, we can jump across multiple discontinuities is $V(q)$ as long as we are
+% aware that $sign(p(t))$ does not change.
+% 
+% TODO: write about the sudden drop in U when we cross a barrier.
 
-What if our distribution $P$ is \emph{discontinuouse}? How do we perform MCMC
-in that case?
-
-\subsection{Hamilton's equations under laplace momntum}
-
-\begin{align*}
-    \frac{d \q}{dt} = \m^{-1} \odot sign(\p) \qquad \frac{d \p}{dt} = - \nabla_q V(q)
-\end{align*}
-where $\odot$ is component-wise multiplication. If we know that $\p$ does
-not change sign, then our dynamics are correct; This is very different from
-the usual hamilton's equations, where we need to know the \emph{magnitude}
-of $\p$.
-
-So, as long as we know that $\p$ has not changed sign, we can hold $sign(\p)$
-consant and use:
-
-$$
-q(t + \epsilon) = q(t) + \epsilon m^{-1} \odot sign(\p(t))
-$$
-
-Thus, we can jump across multiple discontinuities is $V(q)$ as long as we are
-aware that $sign(p(t))$ does not change.
-
-TODO: write about the sudden drop in U when we cross a barrier.
-
-\section{Low discrepancy sequences}
-% https://cseweb.ucsd.edu/~dstefan/pubs/dalal:2008:low.pdf
-% https://openturns.github.io/openturns/master/theory/reliability_sensitivity/low_discrepancy_sequence.html
-Low discrepancy sequences are sequences of numbers that more evenly
-distributed than pseudorandom numbers in high dimensional space. Hence,
-simulations which use Low discrepancy sequences generally approximate
-integrals faster than psuedo-randomly generated points.
-
-Formally, let us consider the $S$ dimensional half-open cube $\I^S \equiv [0, 1)^S$.
-assume we have a set of points $P \subseteq \I^S$, and a sub-interval
-$B \subseteq I^S$, where a sub-interval is a subset of the form 
-$B \equiv \prod_{i=1}^S \{ x \in \I : a_i \leq x \leq b_i \}$.
-
-Given a universe set $X$ and two subsets $Large, Small \subseteq X$, we define
-the amount of containment of $Small$ in $Large$ to be $C(Small, Large) \equiv
-\frac{|Large \cap Small|}{|Large|}$. Intuitively, this measures the fraction
-of $Small$ that is in $Large$. We now define the discrepancy of the set
-of points $P$ relative to the sub-interval $B$ as:
-
-\begin{align*}
-&D(B, P) \equiv \left| C(P, B) - C(B, \I^S) \right| \\
-&= \left| \frac{|B \cap P|}{|P|} - \frac{|B \cap \I^S|}{|\I^S|} \right|  \\
-&= \left| \frac{|B \cap P|}{|P|} - \frac{Volume(B)}{1} \right| \\
-&= \left| \frac{|B \cap P|}{|P|} - Volume(B) \right| \\
-\end{align*}
-
-So, the discrepancy is measuring if $P$ fits within $B$ the way $B$ fits within
-the full space.
-
-Now, the \textbf{worst-case-discrepancy} is defined as the maximum discrepancy
-over all sub-intervals:
-
-$$
-D^\star(P) \equiv \max_{B \in \mathcal{J}} D(B, P)
-$$
-
-where $\mathcal{J} \subseteq 2^{\I^S}$ is the set of all sub-intervals:
-
-$$
-\mathcal{J} \equiv \{ \{ x \in \I^S : l[i] \leq x[i] \leq r[i]~\forall i \} : \vec l, \vec r \in \I^S \}
-$$
-
-The goal is a \emph{low discrepancy sequence} is to minimise the worst-case-discrepancy.
-
-\subsection{Error bounds for Numerical integration}
-
-\subsection{Sobol sequences}
-
-Sobol sequences are an example of low-discrepancy sequences
-
-
-\section{Future Work!}
-I've left the topic names up because they have interesting ideas, which I have
-sketched out in brief. Writing them down formally will take far too long; Hence,
-they've been left here [for the purposes of the project]. I will probably update
-this document even after the project, once I have grokked this material better.
-\section{Slice Sampling}
-
-\section{No-U-Turn sampling}
+% \section{Low discrepancy sequences}
+% % https://cseweb.ucsd.edu/~dstefan/pubs/dalal:2008:low.pdf
+% % https://openturns.github.io/openturns/master/theory/reliability_sensitivity/low_discrepancy_sequence.html
+% Low discrepancy sequences are sequences of numbers that more evenly
+% distributed than pseudorandom numbers in high dimensional space. Hence,
+% simulations which use Low discrepancy sequences generally approximate
+% integrals faster than psuedo-randomly generated points.
+% 
+% Formally, let us consider the $S$ dimensional half-open cube $\I^S \equiv [0, 1)^S$.
+% assume we have a set of points $P \subseteq \I^S$, and a sub-interval
+% $B \subseteq I^S$, where a sub-interval is a subset of the form 
+% $B \equiv \prod_{i=1}^S \{ x \in \I : a_i \leq x \leq b_i \}$.
+% 
+% Given a universe set $X$ and two subsets $Large, Small \subseteq X$, we define
+% the amount of containment of $Small$ in $Large$ to be $C(Small, Large) \equiv
+% \frac{|Large \cap Small|}{|Large|}$. Intuitively, this measures the fraction
+% of $Small$ that is in $Large$. We now define the discrepancy of the set
+% of points $P$ relative to the sub-interval $B$ as:
+% 
+% \begin{align*}
+% &D(B, P) \equiv \left| C(P, B) - C(B, \I^S) \right| \\
+% &= \left| \frac{|B \cap P|}{|P|} - \frac{|B \cap \I^S|}{|\I^S|} \right|  \\
+% &= \left| \frac{|B \cap P|}{|P|} - \frac{Volume(B)}{1} \right| \\
+% &= \left| \frac{|B \cap P|}{|P|} - Volume(B) \right| \\
+% \end{align*}
+% 
+% So, the discrepancy is measuring if $P$ fits within $B$ the way $B$ fits within
+% the full space.
+% 
+% Now, the \textbf{worst-case-discrepancy} is defined as the maximum discrepancy
+% over all sub-intervals:
+% 
+% $$
+% D^\star(P) \equiv \max_{B \in \mathcal{J}} D(B, P)
+% $$
+% 
+% where $\mathcal{J} \subseteq 2^{\I^S}$ is the set of all sub-intervals:
+% 
+% $$
+% \mathcal{J} \equiv \{ \{ x \in \I^S : l[i] \leq x[i] \leq r[i]~\forall i \} : \vec l, \vec r \in \I^S \}
+% $$
+% 
+% The goal is a \emph{low discrepancy sequence} is to minimise the worst-case-discrepancy.
+% 
+% \subsection{Error bounds for Numerical integration}
+% 
+% \subsection{Sobol sequences}
+% 
+% Sobol sequences are an example of low-discrepancy sequences
+% 
+% 
+% \section{Future Work!}
+% I've left the topic names up because they have interesting ideas, which I have
+% sketched out in brief. Writing them down formally will take far too long; Hence,
+% they've been left here [for the purposes of the project]. I will probably update
+% this document even after the project, once I have grokked this material better.
+% \section{Slice Sampling}
+% 
+% \section{No-U-Turn sampling}
 
 \end{document}
 
