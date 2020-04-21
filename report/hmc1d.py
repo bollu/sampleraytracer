@@ -32,7 +32,7 @@ def euler(dhdp, dhdq, q, p, dt):
 
 
 def hmc(q0, U, dU, nsteps, dt):
-    M = 1.0
+    M = 5.0
     def h(q, p): return U(q) + 0.5 / M  * p*p
     def nextsample(q, p):
         for _ in range(nsteps):
@@ -46,12 +46,16 @@ def hmc(q0, U, dU, nsteps, dt):
         # number of simulation steps
         p = np.random.normal(0, M)
         (qnext, pnext) = nextsample(q, p)
-        print("(q:%4.2f, p:%4.2f) -> (q':%4.2f, p':%4.2f)" % (q, p, qnext, pnext))
+        # print("(q:%4.2f, p:%4.2f) -> (q':%4.2f, p':%4.2f)" % (q, p, qnext, pnext))
         r = np.random.uniform();
         # if r < min(1, np.exp(h(q, p) - h(qnext, pnext))): q = qnext
         pnext = -p
         if np.log(r) < h(q, p) - h(qnext, pnext): q = qnext
         yield q
+
+def take_every_nth(n, gen):
+    for (i, x) in enumerate(gen):
+        if i % n == 0: yield x
 
 # HMC
 def exp(x): return np.exp(-x*x)
@@ -67,10 +71,9 @@ def negexp(x): return -1 * exp(x)
 def negexpgrad(x): return -1 * expgrad(x)
 
 COLORTRUTH = "#5C6BC0"; COLORSAMPLES = "#D81B60"
-NSAMPLES = 1000; NSTEPS = 100; DT = 1e-2;
-xs = list(itertools.islice(hmc(1, neglogexp, neglogexpgrad, NSTEPS, DT), NSAMPLES))
+NSAMPLES = 1000; NSTEPS = 2; DT = 0.1; DECORRELATE_STEPS = 10
+xs = list(take_every_nth(DECORRELATE_STEPS, itertools.islice(hmc(1, neglogexp, neglogexpgrad, NSTEPS, DT), NSAMPLES*DECORRELATE_STEPS)))
 ys = [exp(x) for x in xs]
-print("HMC xs: %s" % xs)
 fxs = np.arange(np.min(xs)-1e-1, np.max(xs)+1e-1, (np.max(xs)+1e-1 - (np.min(xs) - 1e-1)) / 100.0);
 fys = [exp(x) for x in fxs];
 fyscum = np.cumsum(fys); fyscum = fyscum / np.max(fyscum)
@@ -82,12 +85,59 @@ ax[0].plot(xs, ys, 'x', label='prob',
         linewidth=5, color=COLORSAMPLES, markersize=4.0)
 
 legend = plt.legend(frameon=False)
-ax[0].set_title("HMC: #samples=%s | " % (NSAMPLES))
+ax[0].set_title("HMC: #samples=%s | decorrelation steps: %s | dt: %4.2f | steps inside hmc: %s " % (len(xs), DECORRELATE_STEPS, DT, NSTEPS))
 ax[0].spines['top'].set_visible(False)
 ax[0].spines['right'].set_visible(False)
 ax[0].spines['bottom'].set_visible(False)
 ax[0].spines['left'].set_visible(False)
 
-ax[1].hist(xs, bins=80, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
+ax[1].hist(xs, bins=200, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
 ax[1].plot(fxs, fyscum, linewidth=5, color=COLORTRUTH, alpha=0.5)
+fig_size = plt.gcf().get_size_inches() #Get current size
+plt.gcf().set_size_inches(2.0 * fig_size) 
+plt.savefig("mcmc-hmc-1d-exp.png")
+plt.show()
+
+
+COLORTRUTH = "#5C6BC0"; COLORSAMPLES = "#D81B60"
+NSAMPLES = 1000; NSTEPS = 20; DT = 1e-2; DECORRELATE_STEPS = 10
+xs = list(take_every_nth(DECORRELATE_STEPS, itertools.islice(hmc(600, neglogexp, neglogexpgrad, NSTEPS, DT), NSAMPLES*DECORRELATE_STEPS)))
+ys = [exp(x) for x in xs]
+fxs = np.arange(np.min(xs)-1e-1, np.max(xs)+1e-1, (np.max(xs)+1e-1 - (np.min(xs) - 1e-1)) / 1000.0);
+fys = [exp(x) for x in fxs];
+fyscum = np.cumsum(fys); fyscum = fyscum / np.max(fyscum)
+plt.rcParams.update({'font.size': 10, 'font.family':'monospace'})
+fig, ax = plt.subplots(3, 1)
+ax[0].plot(fxs, fys, label='prob',
+        linewidth=5, color=COLORTRUTH, markersize=4.0, alpha=0.4)
+ax[0].plot(xs, ys, 'x', label='prob',
+        linewidth=5, color=COLORSAMPLES, markersize=4.0)
+
+legend = plt.legend(frameon=False)
+ax[0].set_title("HMC: #samples=%s | decorrelation steps: %s | dt: %4.2f | steps inside hmc: %s " % (len(xs), DECORRELATE_STEPS, DT, NSTEPS))
+ax[0].spines['top'].set_visible(False)
+ax[0].spines['right'].set_visible(False)
+ax[0].spines['bottom'].set_visible(False)
+ax[0].spines['left'].set_visible(False)
+
+ax[1].set_title("HMC cumulative: #samples=%s " % (len(xs)))
+ax[1].hist(xs, bins=400, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
+ax[1].plot(fxs, fyscum, linewidth=5, color=COLORTRUTH, alpha=0.5)
+fig_size = plt.gcf().get_size_inches() #get current size
+plt.gcf().set_size_inches(2.0 * fig_size) 
+plt.savefig("mcmc-hmc-1d-exp-startx-600.png")
+
+
+RCUTOFF = 2
+xszoom = [x for x in xs if x < RCUTOFF]
+l = np.min(xs)-1e-1; r = min(RCUTOFF, np.max(xszoom)+1e-1)
+fxszoom = np.arange(l, r, (r - l) / 1000.0);
+fyszoom = [exp(x) for x in fxszoom];
+fyszoomcum = np.cumsum(fyszoom); fyszoomcum = fyszoomcum / np.max(fyszoomcum)
+ax[2].set_title("HMC: #samples(zoomed: %4.2f < x < %4.2f)=%s | " % (l, r, len(xszoom)))
+ax[2].hist(xszoom, bins=400, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
+ax[2].plot(fxszoom, fyszoomcum, linewidth=5, color=COLORTRUTH, alpha=0.5)
+fig_size = plt.gcf().get_size_inches() #get current size
+plt.gcf().set_size_inches(2.0 * fig_size) 
+plt.savefig("mcmc-hmc-1d-exp-startx-600.png")
 plt.show()
