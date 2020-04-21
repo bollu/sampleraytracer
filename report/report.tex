@@ -5,7 +5,6 @@
 \usepackage[colorlinks=true]{hyperref}
 
 
-
 \newmintinline[cinline]{c}{}
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\R}{\mathbb{R}}
@@ -454,7 +453,7 @@ where $M$ is a symmetric positive-definite matrix known as a ``mass matrix''.
 \subsection{Modifying Hamilton's equations for generating proposals}
 
 We wish to maximize $\P(x)$. To do this, we will consider a new energy 
-function $U[\P](x) \equiv e^{-\P(x)}$. When $U[\P] = e^{-U[\P](x)}$
+function $U[\P](x) \equiv -\log(\P(x))$. When $U[\P] = -\log(\P(x))$
 is minimized, then $\P(x)$ will be maximized.
 
 We use the proposal function as:
@@ -467,13 +466,36 @@ We use the proposal function as:
     \item Use metropolis-hastings accept-reject.
 \end{itemize}
 
+\subsection{Simulating the above regime}
+
+\begin{minted}{py}
+def euler(dhdp, dhdq, q, p, dt): % f(x + dx) = f(x) + f'(x) * dx
+   pnew = p + -dhdq(q, p) * dt; qnew = q + dhdp(q, p) * dt
+   return (qnew, pnew)
 
 
+def hmc(q0, U, dU, nsteps, dt):
+    # hamiltonian definition
+    def h(q, p): return U(q) + 0.5*p*p
+    def hdp(q, p): return  p
+    def hdq(q, p): return dU(q)
+    def nextsample(q, p): # run `euler` for n steps
+        for _ in range(nsteps):
+            (q, p) = euler(hdq, hdp, q, p, dt)
+        return (q, p)
 
-\subsection{Hamiltonian for our simulation}
-If we have a a target probability distribution $Prob(\q): \R^n \rightarrow \R$
-we choose the Hamiltonian to be $H(\p, \q) \equiv Prob(\q) + \p^T \p/2$.
+    yield q0; q = q0
+    while True:
+        p = np.random.normal(0, 1) # pick random momentum
+        (qnext, pnext) = nextsample(q, p) # simulate next sample
+        pnext = -p # reverse momentum so our process is reversible
+        r = np.random.uniform(); # if accept according to MH, accept.
+        if np.log(r) < h(q, p) - h(qnext, pnext): q = qnext
+        yield q # return point
+\end{minted}
 
+\includegraphics[width=\textwidth]{mcmc-hmc-WRONG-euler-1d-exp.png}
+This has sampled disastrously: what is going wrong?
 
 \subsection{Simulation: Euler integration}
 Unfortunately, it turns out that running this simulation is in fact numerically
@@ -537,13 +559,83 @@ We will show that in phase space, the leapfrog integrator preserves infinitesima
 volumes of the form $dV \equiv d\p \times d\q$.
 
 
-\subsection{Simulation: Final}
+\subsection{Using HMC on the 1D gaussian}
+
+Now that we have the math to setup a symmetric proposal distribution, let's
+code up HMC on a 1D gaussian:
+
+{\footnotesize
+
+\begin{minted}{py}
+def leapfrog(dhdq, dhdp, q0, p0, dt):
+    p0 += -dhdq(q0, p0) * 0.5 * dt  # kick: half step momentum
+    q0 += dhdp(q0, p0) * dt # drift: full step position
+    p0 += -dhdq(q0, p0) * 0.5 * dt # kick: half step momentum
+    return (q0, p0)
+
+def hmc(q0, U, dU, nsteps, dt):
+    def h(q, p): return U(q) + 0.5 * p*p
+    def nextsample(q, p):
+        for _ in range(nsteps):
+            def hdp(q, p): return p
+            def hdq(q, p): return dU(q)
+            (q, p) = leapfrog(hdq, hdp, q, p, dt)
+        return (q, p)
+
+    yield q0; q = q0
+    while True:
+        p = np.random.normal(0, 1)
+        (qnext, pnext) = nextsample(q, p)
+        pnext = -p # reverse momentum so our process is reversible
+        r = np.random.uniform(); 
+        if np.log(r) < h(q, p) - h(qnext, pnext): q = qnext
+        yield q
+...
+def neglogexp(x): return -1 * logexp(x)
+def neglogexpgrad(x): return -1 * logexpgrad(x)
+xs = list(take_every_nth(DECORRELATE_STEPS, 
+    itertools.islice(hmc(1, neglogexp, neglogexpgrad, NSTEPS, DT), NSAMPLES*DECORRELATE_STEPS)))
+\end{minted}
+}
+
+\includegraphics[width=\textwidth]{mcmc-hmc-1d-exp.png}
+
+This looks far worse than the results we got from vanilla metropolis hastings:
+why would anybody use this technique?
 
 
-We no longer need to choose how many steps to walk with a no-U-turn-sampler.
-It prevents us from re-walking energy orbits, by detecting when we have completed
-traversing an orbit and are going to take a "U-turn". The details are quite
-complex, so we may not cover this here.
+\subsection{HMC v/s MH when the proposal is atypical}
+
+So far, I've hidden one thing under the rug: the \emph{initialization} of
+the distribution. We've been starting at $x = 1$ --- let's now change that,
+and start at $x = 600$. Note that this is very far from the "region of
+interest" in the case of a standard normal distribution: 99\% of the probability
+mass is in $[-3, 3]$ (the $3 \sigma$ rule).
+
+\subsubsection{MH starting at $x = 600$}
+
+\includegraphics[width=\textwidth]{mcmc-mh-uncorr-1d-exp-startx-600.png}
+
+Note that out of the $1000$ samples we started from, only $234$ are present
+in the region of $-2 \leq x \leq 2$. We have wasted around $80\%$ of the
+samples we have \emph{moving through the space} to get to the typical set.
+
+
+\subsubsection{HMC starting at $x = 600$}
+
+\includegraphics[width=\textwidth]{mcmc-hmc-1d-exp-startx-600.png}
+
+
+Note that out of the $1000$ samples we started from, only $987$ are present
+in the region of $-2 \leq x \leq 2$. Notice the distribution of samples
+(pink crosses) in the hamiltonian monte-carlo case: most samples clustered around the gaussian;
+our initial samples that are far away are powered by a strong potential energy
+to move towards the center.
+
+This is in stark contrast to the MH case, where the entire $x$-axis is pink,
+due to the 'current point' having to move, proposal-by-proposal (which allows
+at most a movement of distance $1$), from $600$ to $0$.
+
 
 % \section{Discontinuous Hamiltonian monte carlo}
 % 
@@ -631,6 +723,10 @@ complex, so we may not cover this here.
 % \section{Slice Sampling}
 % 
 % \section{No-U-Turn sampling}
+% We no longer need to choose how many steps to walk with a no-U-turn-sampler.
+% It prevents us from re-walking energy orbits, by detecting when we have completed
+% traversing an orbit and are going to take a "U-turn". The details are quite
+% complex, so we may not cover this here.
 
 \end{document}
 
