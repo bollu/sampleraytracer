@@ -93,6 +93,12 @@ ax[0].spines['left'].set_visible(False)
 
 ax[1].hist(xs, bins=200, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
 ax[1].plot(fxs, fyscum, linewidth=5, color=COLORTRUTH, alpha=0.5)
+
+ax[1].spines['top'].set_visible(False)
+ax[1].spines['right'].set_visible(False)
+ax[1].spines['bottom'].set_visible(False)
+ax[1].spines['left'].set_visible(False)
+
 fig_size = plt.gcf().get_size_inches() #Get current size
 plt.gcf().set_size_inches(2.0 * fig_size) 
 plt.savefig("mcmc-hmc-1d-exp.png")
@@ -120,6 +126,11 @@ ax[0].spines['right'].set_visible(False)
 ax[0].spines['bottom'].set_visible(False)
 ax[0].spines['left'].set_visible(False)
 
+ax[1].spines['top'].set_visible(False)
+ax[1].spines['right'].set_visible(False)
+ax[1].spines['bottom'].set_visible(False)
+ax[1].spines['left'].set_visible(False)
+
 ax[1].set_title("HMC cumulative: #samples=%s " % (len(xs)))
 ax[1].hist(xs, bins=400, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
 ax[1].plot(fxs, fyscum, linewidth=5, color=COLORTRUTH, alpha=0.5)
@@ -134,6 +145,11 @@ l = np.min(xs)-1e-1; r = min(RCUTOFF, np.max(xszoom)+1e-1)
 fxszoom = np.arange(l, r, (r - l) / 1000.0);
 fyszoom = [exp(x) for x in fxszoom];
 fyszoomcum = np.cumsum(fyszoom); fyszoomcum = fyszoomcum / np.max(fyszoomcum)
+ax[2].spines['top'].set_visible(False)
+ax[2].spines['right'].set_visible(False)
+ax[2].spines['bottom'].set_visible(False)
+ax[2].spines['left'].set_visible(False)
+
 ax[2].set_title("HMC: #samples(zoomed: %4.2f < x < %4.2f)=%s | " % (l, r, len(xszoom)))
 ax[2].hist(xszoom, bins=400, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
 ax[2].plot(fxszoom, fyszoomcum, linewidth=5, color=COLORTRUTH, alpha=0.5)
