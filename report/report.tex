@@ -404,20 +404,26 @@ that we wish to simulate the orbit of a planet. Recall that we want
 the proposal to be symmetric: so, if we simulate the trajectory of the planet
 for $N$ timesteps, each timestep of time $\delta t$, and then \emph{reverse}
 the momentum of the planet, run the next phse of the simulation for $N$ timesteps
-with timestep $\delta t$, we should begin where we started. 
+with timestep $\Delta t$, we should begin where we started. However,
+if we try to use the euler integration equations, here is what we see:
 
-on attempting to plot the orbit of a planet with somewhat large step-size, here is the
-output we see:
+\begin{minted}{py}
+def euler(dhdp, dhdq, q, p, dt):
+   pnew = p + -dhdq(q, p) * dt
+   qnew = q + dhdp(q, p) * dt
+   return (qnew, pnew)
+\end{minted}
 
-\includegraphics[width=\textwidth/2]{./euler-dt-1.png}
+\includegraphics[width=\textwidth/2]{./euler-dt-0-1.png}
 
-We might suspect that this is because of the relative high step size. So,
-let us crank down the step size to be $\texttt{1e-2} = 0.01$. We can
-plot our euler integrator for more iterations, to notice that we are still spiralling out:
+We can clearly see the forward trajectory (in pink) spiralling out, and
+the backward trajectory (in blue), spiralling out even more. We can attempt
+to fix this by making $\Delta t$ smaller:
 
-\includegraphics[width=\textwidth/2]{./euler-dt-1e-2.png}
+\includegraphics[width=\textwidth/2]{./euler-dt-0-01.png}
 
-Indeed, this is a \textbf{fundamental limitation of euler integration}.
+
+to no avail. Indeed, this is a \textbf{fundamental limitation of euler integration}.
 Hence, we will need to explore more refined integration schemes.
 
 \subsection{Simulation: Symplectic integrator}
@@ -430,12 +436,21 @@ It is a branch of differential geometry which formalizes the consructs
 needed to carry out hamiltonian mechanics on spaces that are more complicated
 that Euclidian $\R^n$).
 
+\begin{minted}{py}
+## dq/dt = dH/dp|_{p0, q0}, dp/dt = -dH/dq|_{p0, q0}
+def leapfrog(dhdp, dhdq, q0, p0, dt):
+    p0 += -dhdq(q0, p0) * 0.5 * dt # kick: half step momentum
+    q0 += dhdp(q0, p0) * dt # drift: full step position
+    p0 += -dhdq(q0, p0) * 0.5 * dt # kick: half step momentum
+    return (q0, p0)
+\end{minted}
 
-\includegraphics[width=\textwidth/2]{./leapfrog-dt-1.png}
-\includegraphics[width=\textwidth/2]{./leapfrog-dt-1e-2.png}
+
+\includegraphics[width=\textwidth/2]{./leapfrog-dt-0-1.png}
 
 It is clear from the plots that the leapfrog integrator is stable: orbits
-stay as orbits. 
+stay as orbits. Indeed, we can prove the symplecticity/energy-preserving
+property of this integrator:
 
 
 \subsection{Simulation: Final}

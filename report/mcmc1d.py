@@ -5,6 +5,7 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import numpy.linalg
 import argparse
+import itertools
 
 
 
@@ -48,27 +49,34 @@ def planet(q, p, integrator, n, dt):
         ps.append(p.copy())
     return np.asarray(qs), np.asarray(ps)
 
-def plot(NITERS, DT, integrator, integrator_name):
-    qs, ps = planet(*startpos(), integrator, NITERS, DT)
-    plt.rcParams.update({'font.size': 10, 'font.family':'monospace'})
-    fig, ax = plt.subplots()
-    ax.plot(qs[:, 0], qs[:, 1], 'x', label='%s (fwd)' % (integrator_name, ),
-            linewidth=5, color='#D81B60', markersize=4.0)
+def prob(x): return sin(x)
+def proposal(x): return np.random.normal(loc=x, scale=1)
 
-    qs, _ = planet(qs[-1], -ps[-1], integrator, NITERS, DT)
-    ax.plot(qs[:, 0], qs[:, 1], '+', label='%s (bwd)' % (integrator_name, ),
-            linewidth=5, color='#5C6BC0', markersize=4.0)
+def mh(x0, prob, prop, NITERS)
+    yield x0; x = x0;
+    while True:
+        for i in range(NITERS):
+            xnext = prop(x); p = prob(x); pnext = prob(xnext)
+            r = np.random.uniform();
+            if log(r) < min(0, log(xnext) - log(x)): x = xnext
+        yield xnext
 
-    legend = plt.legend(frameon=False)
-    ax.set_title("%s integrator: NITERS=%s dt=%s" % (integrator_name, NITERS, DT))
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    plt.savefig("%s-dt-%s.png" % (integrator_name, str(DT).replace(".", "-")))
-    plt.show()
-plot(400, 1e-1, euler, 'euler')
-plot(4000, 1e-2, euler, 'euler')
+xs = itertools.slice(mh(3, prob, proposal, NITERS))
+ys = 
+plt.rcParams.update({'font.size': 10, 'font.family':'monospace'})
+fig, ax = plt.subplots()
+ax.plot(qs[:, 0], qs[:, 1], 'x', label='%s (fwd)' % (integrator_name, ),
+        linewidth=5, color='#D81B60', markersize=4.0)
 
-plot(400, 1e-1, leapfrog, 'leapfrog')
-# plot(30*100, 1e-2, leapfrog, 'leapfrog')
+qs, _ = planet(qs[-1], -ps[-1], integrator, NITERS, DT)
+ax.plot(qs[:, 0], qs[:, 1], '+', label='%s (bwd)' % (integrator_name, ),
+        linewidth=5, color='#5C6BC0', markersize=4.0)
+
+legend = plt.legend(frameon=False)
+ax.set_title("%s integrator: NITERS=%s dt=%s" % (integrator_name, NITERS, DT))
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.spines['bottom'].set_visible(False)
+ax.spines['left'].set_visible(False)
+plt.savefig("
+plt.show()
