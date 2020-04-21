@@ -69,7 +69,7 @@ ys = [exp(x) for x in xs]
 fxs = np.arange(np.min(xs)-1e-1, np.max(xs)+1e-1, (np.max(xs)+1e-1 - (np.min(xs) - 1e-1)) / 100.0);
 fys = [exp(x) for x in fxs];
 fyscum = np.cumsum(fys); fyscum = fyscum / np.max(fyscum)
-plt.rcParams.update({'font.size': 10, 'font.family':'monospace'})
+plt.rcParams.update({'font.size': 20, 'font.family':'monospace'})
 fig, ax = plt.subplots(2, 1)
 ax[0].plot(fxs, fys, label='prob',
         linewidth=5, color=COLORTRUTH, markersize=4.0, alpha=0.4)
@@ -77,19 +77,20 @@ ax[0].plot(xs, ys, 'x', label='prob',
         linewidth=5, color=COLORSAMPLES, markersize=4.0)
 
 legend = plt.legend(frameon=False)
-ax[0].set_title("metropolis-hastings-simple simple #samples=%s"% NSAMPLES)
+ax[0].set_title("MH  naive simple #samples=%s"% NSAMPLES)
 ax[0].spines['top'].set_visible(False)
 ax[0].spines['right'].set_visible(False)
 ax[0].spines['bottom'].set_visible(False)
 ax[0].spines['left'].set_visible(False)
 
-ax[1].set_title("metropolis-hastings-simple (cumulative sum) #samples=%s"% NSAMPLES)
+ax[1].set_title("cumulative sum")
 ax[1].hist(xs, bins=200, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
 ax[1].plot(fxs, fyscum, linewidth=5, color=COLORTRUTH, alpha=0.5)
 ax[1].spines['top'].set_visible(False)
 ax[1].spines['right'].set_visible(False)
 ax[1].spines['bottom'].set_visible(False)
 ax[1].spines['left'].set_visible(False)
+plt.tight_layout()
 fig_size = plt.gcf().get_size_inches() #Get current size
 plt.gcf().set_size_inches(2.0 * fig_size) 
 plt.savefig("mcmc-mh-simple-1d-exp.png")
@@ -104,7 +105,7 @@ ys = [exp(x) for x in xs]
 fxs = np.arange(np.min(xs)-1e-1, np.max(xs)+1e-1, (np.max(xs)+1e-1 - (np.min(xs) - 1e-1)) / 100.0);
 fys = [exp(x) for x in fxs];
 fyscum = np.cumsum(fys); fyscum = fyscum / np.max(fyscum)
-plt.rcParams.update({'font.size': 10, 'font.family':'monospace'})
+plt.rcParams.update({'font.size': 20, 'font.family':'monospace'})
 fig, ax = plt.subplots(2, 1)
 ax[0].plot(fxs, fys, label='prob',
         linewidth=5, color=COLORTRUTH, markersize=4.0, alpha=0.4)
@@ -112,19 +113,20 @@ ax[0].plot(xs, ys, 'x', label='prob',
         linewidth=5, color=COLORSAMPLES, markersize=4.0)
 
 legend = plt.legend(frameon=False)
-ax[0].set_title("metropolis-hastings-uncorrelate simple #samples=%s | #iters/sample: %s"% (NSAMPLES, ITERS_PER_SAMPLE))
+ax[0].set_title("MH-decor #samples=%s | #iters/sample: %s"% (NSAMPLES, ITERS_PER_SAMPLE))
 ax[0].spines['top'].set_visible(False)
 ax[0].spines['right'].set_visible(False)
 ax[0].spines['bottom'].set_visible(False)
 ax[0].spines['left'].set_visible(False)
 
-ax[1].set_title("metropolis-hastings-uncorrelate simple (cumulative sum) #samples=%s | #iters/sample: %s"% (NSAMPLES, ITERS_PER_SAMPLE))
+ax[1].set_title("cumulative sum")
 ax[1].hist(xs, bins=200, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
 ax[1].plot(fxs, fyscum, linewidth=5, color=COLORTRUTH, alpha=0.5)
 ax[1].spines['top'].set_visible(False)
 ax[1].spines['right'].set_visible(False)
 ax[1].spines['bottom'].set_visible(False)
 ax[1].spines['left'].set_visible(False)
+# plt.tight_layout()
 fig_size = plt.gcf().get_size_inches() #Get current size
 plt.gcf().set_size_inches(2.0 * fig_size) 
 plt.savefig("mcmc-mh-uncorr-1d-exp.png")
@@ -139,7 +141,7 @@ ys = [exp(x) for x in xs]
 fxs = np.arange(np.min(xs)-1e-1, np.max(xs)+1e-1, (np.max(xs)+1e-1 - (np.min(xs) - 1e-1)) / 1000.0);
 fys = [exp(x) for x in fxs];
 fyscum = np.cumsum(fys); fyscum = fyscum / np.max(fyscum)
-plt.rcParams.update({'font.size': 10, 'font.family':'monospace'})
+plt.rcParams.update({'font.size': 20, 'font.family':'monospace'})
 fig, ax = plt.subplots(3, 1)
 ax[0].plot(fxs, fys, label='prob',
         linewidth=5, color=COLORTRUTH, markersize=4.0, alpha=0.4)
@@ -147,13 +149,13 @@ ax[0].plot(xs, ys, 'x', label='prob',
         linewidth=5, color=COLORSAMPLES, markersize=4.0)
 
 legend = plt.legend(frameon=False)
-ax[0].set_title("metropolis-hastings-uncorrelate simple #samples=%s | #iters/sample: %s"% (NSAMPLES, ITERS_PER_SAMPLE))
+ax[0].set_title("MH #samples=%s | #iters/sample: %s"% (NSAMPLES, ITERS_PER_SAMPLE))
 ax[0].spines['top'].set_visible(False)
 ax[0].spines['right'].set_visible(False)
 ax[0].spines['bottom'].set_visible(False)
 ax[0].spines['left'].set_visible(False)
 
-ax[1].set_title("metropolis-hastings-uncorrelate simple (cumulative sum) #samples=%s | #iters/sample: %s"% (NSAMPLES, ITERS_PER_SAMPLE))
+ax[1].set_title("cumulative sum")
 ax[1].hist(xs, bins=400, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
 ax[1].plot(fxs, fyscum, linewidth=5, color=COLORTRUTH, alpha=0.5)
 ax[1].spines['top'].set_visible(False)
@@ -168,7 +170,7 @@ fxszoom = np.arange(l, r, (r - l) / 1000.0);
 fyszoom = [exp(x) for x in fxszoom];
 fyszoomcum = np.cumsum(fyszoom); fyszoomcum = fyszoomcum / np.max(fyszoomcum)
 
-ax[2].set_title("metropolis-hastings-uncorrelate #samples(zoomed: %4.2f < x < %4.2f)=%s | " % (l, r, len(xszoom)))
+ax[2].set_title("cumulative (zoomed: %4.2f < x < %4.2f)=%s " % (l, r, len(xszoom)))
 ax[2].hist(xszoom, bins=400, cumulative=True, density=True, label='prob', linewidth=5, color=COLORSAMPLES)
 ax[2].plot(fxszoom, fyszoomcum, linewidth=5, color=COLORTRUTH, alpha=0.5)
 
@@ -177,7 +179,9 @@ ax[2].spines['right'].set_visible(False)
 ax[2].spines['bottom'].set_visible(False)
 ax[2].spines['left'].set_visible(False)
 
+plt.tight_layout()
 fig_size = plt.gcf().get_size_inches() #Get current size
 plt.gcf().set_size_inches(2.0 * fig_size) 
+plt.tight_layout()
 plt.savefig("mcmc-mh-uncorr-1d-exp-startx-600.png")
 plt.show()

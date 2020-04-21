@@ -64,7 +64,7 @@ ys = [exp(x) for x in xs]
 fxs = np.arange(np.min(xs)-1e-1, np.max(xs)+1e-1, (np.max(xs)+1e-1 - (np.min(xs) - 1e-1)) / 100.0);
 fys = [exp(x) for x in fxs];
 fyscum = np.cumsum(fys); fyscum = fyscum / np.max(fyscum)
-plt.rcParams.update({'font.size': 10, 'font.family':'monospace'})
+plt.rcParams.update({'font.size': 20, 'font.family':'monospace'})
 fig, ax = plt.subplots(2, 1)
 ax[0].plot(fxs, fys, label='prob',
         linewidth=5, color=COLORTRUTH, markersize=4.0, alpha=0.4)
@@ -72,7 +72,7 @@ ax[0].plot(xs, ys, 'x', label='prob',
         linewidth=5, color=COLORSAMPLES, markersize=4.0)
 
 legend = plt.legend(frameon=False)
-ax[0].set_title("HMC: #samples=%s | decorrelation steps: %s | dt: %6.4f | steps inside hmc: %s " % (len(xs), DECORRELATE_STEPS, DT, NSTEPS))
+ax[0].set_title("HMC: #samples=%s | steps inside hmc: %s " % (len(xs), NSTEPS))
 ax[0].spines['top'].set_visible(False)
 ax[0].spines['right'].set_visible(False)
 ax[0].spines['bottom'].set_visible(False)
