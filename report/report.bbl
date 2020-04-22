@@ -1,0 +1,18 @@
+\begin{thebibliography}{1}
+
+\bibitem{betancourt2017conceptual}
+Michael Betancourt.
+\newblock A conceptual introduction to hamiltonian monte carlo.
+\newblock {\em arXiv preprint arXiv:1701.02434}, 2017.
+
+\bibitem{brooks2011handbook}
+Steve Brooks, Andrew Gelman, Galin Jones, and Xiao-Li Meng.
+\newblock {\em Handbook of markov chain monte carlo}.
+\newblock CRC press, 2011.
+
+\bibitem{kobilarov2009lie}
+Marin Kobilarov, Keenan Crane, and Mathieu Desbrun.
+\newblock Lie group integrators for animation and control of vehicles.
+\newblock {\em ACM transactions on Graphics (TOG)}, 28(2):1--14, 2009.
+
+\end{thebibliography}
