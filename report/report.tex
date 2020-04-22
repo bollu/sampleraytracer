@@ -2,6 +2,7 @@
 \usepackage{amsmath, amssymb}
 \usepackage{minted}
 \usepackage{graphicx}
+\usepackage{tikz}
 \usepackage[colorlinks=true]{hyperref}
 
 
@@ -16,6 +17,7 @@
 \newcommand{\p}{\mathbf{p}}
 \newcommand{\q}{\mathbf{q}}
 
+\newcommand{\E}[1]{\mathbb{E}\left[ #1 \right]}
 
 \newcommand{\m}{\mathbf{m}}
 \renewcommand{\P}{\mathfrak{P}}
@@ -26,7 +28,7 @@
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{proof}{Proof}[theorem]
-\title{A detailed reference of MCMC algorithms}
+\title{Markov Chain Monte Carlo:  Metropolis-Hastings \& Hamiltonian Monte Carlo }
 \author{Siddharth Bhat (20161105) ~ \texttt{siddu.druid@gmail.com}}
 \date{\today}
 \begin{document}
@@ -88,35 +90,90 @@ its graphs) can be found at \url{https://github.com/bollu/sampleraytracer}.
 %     \item A custom distribution $P(x: \R) = |sin(x)|$.
 % \end{itemize}
 
-\subsection{Fundamental Problem of MCMC sampling}
-Given a weak, simple sampler of the form $\cinline{rand} : S \rightarrow S \times \cinline{int}$,
-build a sampler $\texttt{sampler}(P, X): T \rightarrow T \times X$ which returns
-value distributed according to some \emph{un-normalized}
-distribution of choice $P: X \rightarrow \mathbb R$.
+\subsection{MCMC sampling: the fundamental algorithm}
 
-The un-normalized constraint is important: it is what allows
-us to exploit MCMC to a wide variety of scienarios.
+markov-chain-monte-carlo methods are a class of algorithms which blend together
+two or three properties; these properties blend together in subtle ways,
+and permit us to solve very different-looking-problems using the same toolkit,
+by leveraging different portions of the algorithm's power. Broadly, they
+all solve the following problem:
+
+\begin{quote}
+    Given an \textbf{arbitrary} function $\P: X \rightarrow \R$, \textbf{create a sampler} for the
+    \textbf{normalized} probability distributed from $\P$, $\hat \P(x) \equiv \frac{\P(x)}{\int \P(x) dx}$.
+    Furthermore, allow the sampling process to be \textbf{guided by} a proposal distribution:
+    $\Prop: X \rightarrow (X \rightarrow [0, 1])$. This proposal, for each
+    location $x_0 \in X$, permits the specification of a '\textbf{likely direction} of higher likelihood',
+    $\Prop(x_0): X \rightarrow \R$.
+\end{quote}
 
 \subsection{Sampling use case 1. Simulation And Sampling}
 Often, we do really want samples from a particular distribution. For example,
 we might often want to apply Bayes' rule and sample from the posterior
-distribution. Recall the formla:
+distribution. Assume that we have a computational procedure to compute
+$P(X=x_0|Y=y_0)$. We now want to $P(Y|X=x_0)$.
 
 $$
-P(Y|X) = P(X|Y).P(Y)/P(X)
+P(Y|X=x_0) = \frac{P(X=x_0|Y)P(Y)}{\sum_{y} P(X=x_0|Y=y)}
 $$
+
+There are two problems in sampling the above distribution:
+\begin{itemize}
+    \item[1] The expression $P(Y=y|X=x)$ has no a-priori structure. Hence,
+        we will need an algorithm that can sample from an arbitrary distribution.
+    \item[2] The denominator term, which is a normalization factor can
+        be extremely expensive to compute due to the summation involved
+\end{itemize}
+
+Hence, we need to use MCMC to sample from $P(Y|X=x_0)$, and we can
+expedite this by sampling from $\P(Y|X=x_0) = P(X=x_0|Y)P(Y) \propto P(Y|X=x_0)$
 
 
 \subsection{Sampling use case 2. Gradient Free Optimisation}
 We  want to maximize a function $f: X \rightarrow \R$. However, we lack
 gradients for $f$, hence we cannot use techniques such as gradient
 descent, or other techniques from convex optimisation.
-
 In such a case, we can consider $f$ as some sort of unnormalized
 probability distribution, and use MCMC to sample from $f$.
 
+That is, we set $\P \equiv f$. Now, samples from $\P$ will be 'more likely'
+to come from those regions where $f$ is large, since a sampler
+will be more likely to sample from regions of high probability.
+
 
 \subsection{Sampling use case 3. Numerical Integration}
+
+We wish to calculate $\int_l^u f(x) dx$ where $f$ is some complicated 
+function with no closed form for the definite integral of $f$. In this case,
+we know that the average value of a function, denoted by $\E{f}$, can be
+computed as:
+
+$$
+\E{f} \equiv \frac{1}{|u - l|} \int_l^u f(x) dx
+$$
+
+On rearrangement, we get:
+
+$$
+\int_l^u f(x) dx = |u - l| \E{f}
+$$
+
+Hence, if we have a good approximation of $\E{f}$, we have a good approximation
+for the integration. The naive approximation of $\E{f}$ can be found by using:
+
+$$
+\E{f} \simeq \frac{1}{n} \sum_{i=1}^n f(x_i)
+$$
+
+However, we often know \emph{something} about $f$, just not its \emph{precise} shape:
+\includegraphics[width=\textwidth]{complicated-fn-simple-envelope.png}
+
+In this case, we can \emph{guide} the sampling process, by setting the proposal
+\Prop~as the envelope of the function $f$. That way, we will be more likely
+to pick up \emph{useful samples}, which rapidly sample from the region of
+space that has mass for the integration.
+
+
 
 \section{Where it all begins: The Metropolis Hastings sampler}
 \subsection{The big idea}
@@ -419,7 +476,7 @@ is as follows:
     \item Interpret the probability landscape as a potential, with
         points of high probability being "valleys" and points of low probability
         being "peaks" (ie, invert the probability density with a transform
-        such as $U[\P](x) = e^{-\P(x)}$. This way, a ball rolling on this
+        such as $U[\P](x) = -\log \P(x)$. This way, a ball rolling on this
         terrain will try to move towards the valleys --- which are the locations
         of high probability $\P$.
     \item For a proposal at a position $x_0 \in X$, keep a ball at $x_0$,
@@ -429,42 +486,82 @@ is as follows:
         is reversible and detail balanced because 
         \emph{classical mechanics is reversible and detail balanced}.
 \end{itemize}
-We need the derivative of $\P(x)$ to be able to simulate the ball according
-to Newton's laws. If we can do this, though, we are able to cover large
-amounts of terrain.
 
+% \begin{align*}
+%     &\frac{\partial \q}{\partial t} = \frac{\partial H}{\partial \p} \qquad
+%     \frac{\partial \p}{\partial t} = - \frac{\partial H}{\partial \q} \\
+%     &H(\q, \p) \equiv  U(\q) + K(\p) \\
+%     &U(\q) \equiv \text{potential enetry} = - \log \P(\q) \quad K(\p) \equiv \text{kinetic energy} = \p^T \p/2
+% \end{align*}
 
-\subsection{Newton's laws of motion: Hamilton's equations}
+We wish to sample from a new distribution $P_H$, which is defined as:
 
 \begin{align*}
-    \frac{\partial \q}{\partial t} = \frac{\partial H}{\partial \p} \qquad
-    \frac{\partial \p}{\partial t} = - \frac{\partial H}{\partial \q}
+&P_H[\P](\p, \q) \equiv \exp(-H[\P](\p, \q)) \qquad \text{(Sample states with low energy: Boltzmann/Ising model)}\\
+&= \exp(-(U[\P](\q) + K(\p))) \qquad \text{(by defn. of hamiltonian, $H[\P] = U[\P] + K$)}\\
+&= \exp(-(-\log \P(\q) + \p^T \p/2)) \qquad \text{(by choice of $U$ as NLL, $K$ as classical KE)}\\
+&= \exp(\log \P(\q) - \p^T \p/2)) \\
+&= \exp(\log \P(\q)) \cdot \exp(-\p^T \p/2) \\
+&= \P(\q) \cdot \exp(-\p^T \p/2) \\
 \end{align*}
 
-In our case, the choice of the hamiltonian will consider the negative-log-probability-density
-to be the \emph{energy}. So, higher probability has lower energy. We know that
-particles like to go towards lower energy states.
+Note that the probability distribution for $P_H[\P]$ has split into two
+independent distributions: $\P(\q)$, and $\exp(-\p^T \p/2)$. Hence,
+sampling $(\p, \q) \sim P_H[\P]$ correctly is \emph{equivalent} to 
+sampling $\q \sim \P$, and $\p \sim \exp(-\p^T\p/2)$. Therefore, if we can
+sample from $P_H$ effectively, taking only $(\q, \_) \sim P_H[\P]$ will
+correctly give us the samples we are looking for.
 
-$$ H(\q, \p) \equiv  U(\q) + K(\p) \quad K(\p) \equiv \p^T M^{-1} \p/2 $$
+We will show that using MCMC to sample from the $P_H[\P]$ above, with a particular
+proposal function $\Prop_H$ that we shall define momentarily will provide
+us with samples $(\p, \q)$ such that the $\q$ is sampled from $\P$.
+This begs the question: "why do we need $\p$ anyway?" We will
+show how introducing this $\p$ allows for rapid exploration of the space of possible
+$\q$s.
 
-where $M$ is a symmetric positive-definite matrix known as a ``mass matrix''.
+\subsection{The proposal function for HMC}
 
+In classical mechanics, once we have a hamiltonian $H(\q, \p)$, the dynamics of the
+system are simulated according to the equations (called Hamilton's equations):
+\begin{align*}
+\frac{\partial \q}{\partial t} = \frac{\partial H[\P]}{\partial \p} \qquad
+\frac{\partial \p}{\partial t} =  \frac{-\partial H[\P]}{\partial \q} 
+\end{align*}
 
-\subsection{Modifying Hamilton's equations for generating proposals}
+These equations, specialized to our situation become:
 
-We wish to maximize $\P(x)$. To do this, we will consider a new energy 
-function $U[\P](x) \equiv -\log(\P(x))$. When $U[\P] = -\log(\P(x))$
-is minimized, then $\P(x)$ will be maximized.
+{\footnotesize
+\begin{align*}              
+    &\frac{\partial \q}{\partial t} 
+      = \frac{\partial H[\P]}{\partial \p} 
+      = \frac{\partial (U[\P](\q) + K(\p))}{\partial \p} 
+      = \frac{\partial K(\p)}{\partial \p} 
+      = \frac{\partial (\p^T \p)}{\partial \p} = 2\p \\
+&\frac{\partial \p}{\partial t} 
+    =  \frac{-\partial H[\P]}{\partial \q} 
+    = \frac{-\partial (U[\P](\q) + K(\p))}{\partial \q}  
+    = \frac{-\partial U[\P](\q)}{\partial \q}  
+    =  \frac{-\partial -\log \P(\q)}{\partial \q} 
+    =  \frac{\partial \log \P(\q)}{\partial \q}  \\
+\end{align*}
+}
 
-We use the proposal function as:
-\begin{itemize}
-    \item We are currently at the location $\q_0$.
-    \item Pick a uniform randomly momentum $\p$.
-    \item Simulate the system according to the differential equations mentioned
-        above, to produce a new $(\q', \p')$.
-    \item Use this $(\q', \p')$ as the proposed point from the proposal.
-    \item Use metropolis-hastings accept-reject.
-\end{itemize}
+We will denote a solution to the above system of equations as 
+$(\q_{final}, \p_{final}) \equiv X_H[\P](\q_0, \p_0, T_0)$. That is, starting
+from the position $(\p_0, \q_0)$, simulate the system for $T_0 \in \mathbb R$
+time, according to Hamilton's equations. The final (position, momentum)
+is $(\q_{final}, \p_{final})$.
+
+Now, our proposal function will be:
+
+$$
+\Prop(\q_0, \_) \equiv \texttt{let } \p_0 \sim normal(0, 1) \texttt{ in } (X_H[\P](\q_0, \p_0, T_0)
+$$
+
+That is, we will  propose the new point as one obtained
+from time evolution of the solutions to the hamiltonian; (a) we start from the
+point $\q_0$; (b) pick a \emph{random velocity} $\p_0$; (c) simulate the
+system for $T_0$ time using hamilton's equations; (d) return the final (position, momentum) as our proposal.
 
 \subsection{Simulating the above regime}
 
@@ -514,13 +611,13 @@ def euler(dhdp, dhdq, q, p, dt):
    return (qnew, pnew)
 \end{minted}
 
-\includegraphics[width=\textwidth/2]{./euler-dt-0-1.png}
+\includegraphics[width=\textwidth]{./euler-dt-0-1.png}
 
 We can clearly see the forward trajectory (in pink) spiralling out, and
 the backward trajectory (in blue), spiralling out even more. We can attempt
 to fix this by making $\Delta t$ smaller:
 
-\includegraphics[width=\textwidth/2]{./euler-dt-0-01.png}
+\includegraphics[width=\textwidth]{./euler-dt-0-01.png}
 
 
 to no avail. Indeed, this is a \textbf{fundamental limitation of euler integration}.
@@ -546,7 +643,7 @@ def leapfrog(dhdp, dhdq, q0, p0, dt):
 \end{minted}
 
 
-\includegraphics[width=\textwidth/2]{./leapfrog-dt-0-1.png}
+\includegraphics[width=\textwidth]{./leapfrog-dt-0-1.png}
 
 It is clear from the plots that the leapfrog integrator is stable: orbits
 stay as orbits. Indeed, we can prove the symplecticity/energy-preserving

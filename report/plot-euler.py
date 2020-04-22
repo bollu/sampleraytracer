@@ -50,7 +50,7 @@ def planet(q, p, integrator, n, dt):
 
 def plot(NITERS, DT, integrator, integrator_name):
     qs, ps = planet(*startpos(), integrator, NITERS, DT)
-    plt.rcParams.update({'font.size': 10, 'font.family':'monospace'})
+    plt.rcParams.update({'font.size': 20, 'legend.fontsize':20, 'legend.markerscale': 5, 'font.family':'monospace'})
     fig, ax = plt.subplots()
     ax.plot(qs[:, 0], qs[:, 1], 'x', label='%s (fwd)' % (integrator_name, ),
             linewidth=5, color='#D81B60', markersize=4.0)
@@ -65,6 +65,9 @@ def plot(NITERS, DT, integrator, integrator_name):
     ax.spines['right'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
     ax.spines['left'].set_visible(False)
+    plt.tight_layout()
+    fig_size = plt.gcf().get_size_inches() #get current size
+    plt.gcf().set_size_inches(3.0 * fig_size) 
     plt.savefig("%s-dt-%s.png" % (integrator_name, str(DT).replace(".", "-")))
     plt.show()
 plot(400, 1e-1, euler, 'euler')

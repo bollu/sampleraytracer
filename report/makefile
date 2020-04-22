@@ -7,5 +7,6 @@ plots:
 	./plot-euler.py
 	./mcmc1d.py
 	./hmc1d.py
+	./importance-eg.py
 
 	
