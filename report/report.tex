@@ -16,7 +16,6 @@
 \newcommand{\uniformbool}{\texttt{uniformbool}}
 \newcommand{\p}{\mathbf{p}}
 \newcommand{\q}{\mathbf{q}}
-
 \newcommand{\E}[1]{\mathbb{E}\left[ #1 \right]}
 
 \newcommand{\m}{\mathbf{m}}
@@ -30,6 +29,8 @@
 \newtheorem{proof}{Proof}[theorem]
 \title{Markov Chain Monte Carlo:  Metropolis-Hastings \& Hamiltonian Monte Carlo }
 \author{Siddharth Bhat (20161105) ~ \texttt{siddu.druid@gmail.com}}
+
+
 \date{\today}
 \begin{document}
 \maketitle
@@ -555,7 +556,7 @@ is $(\q_{final}, \p_{final})$.
 Now, our proposal function will be:
 
 $$
-\Prop(\q_0, \_) \equiv \texttt{let } \p_0 \sim normal(0, 1) \texttt{ in } (X_H[\P](\q_0, \p_0, T_0)
+\Prop(\q_0, \_) \equiv \texttt{let } \p_0 \sim normal(0, 1) \texttt{ in }  X_H[\P](\q_0, \p_0, T_0)
 $$
 
 That is, we will  propose the new point as one obtained
@@ -563,7 +564,7 @@ from time evolution of the solutions to the hamiltonian; (a) we start from the
 point $\q_0$; (b) pick a \emph{random velocity} $\p_0$; (c) simulate the
 system for $T_0$ time using hamilton's equations; (d) return the final (position, momentum) as our proposal.
 
-\subsection{Simulating the above regime}
+\subsection{Simulating the above equations to sample $\P \equiv \exp(-x^2)$}
 
 \begin{minted}{py}
 def euler(dhdp, dhdq, q, p, dt): % f(x + dx) = f(x) + f'(x) * dx
@@ -583,25 +584,49 @@ def hmc(q0, U, dU, nsteps, dt):
 
     yield q0; q = q0
     while True:
-        p = np.random.normal(0, 1) # pick random momentum
-        (qnext, pnext) = nextsample(q, p) # simulate next sample
-        pnext = -p # reverse momentum so our process is reversible
-        r = np.random.uniform(); # if accept according to MH, accept.
+        p = np.random.normal(0, 1) # (a) pick random momentum
+        (qnext, pnext) = nextsample(q, p) # (b) simulate next sample
+        pnext = -p # (c) reverse momentum so our process is reversible
+        r = np.random.uniform(); # (d) if accept according to MH, accept.
         if np.log(r) < h(q, p) - h(qnext, pnext): q = qnext
         yield q # return point
 \end{minted}
+Let's quickly explain the code;
+\begin{itemize}
+    \item[(a)] We start by picking a random momentum for the proposal,
+               which is sampled from a uniform normal distribution.
+               This is \mintinline{py}{p = np.random.normal(0, 1)}.
+    \item[(b)] We now find the point \texttt{(qnext, pnext)} which is
+        the value $(\q_{next}, \p_{next}) = X_H[\P](\q, \p, dt)$. Unfortunately,
+        we do not have a closed form for $X_H$. So, we solve Hamilton's
+        equations using \emph{numerical  integration}.
+        We use the Euler integrator, which uses the taylor expansion:
+        $f(x+\Delta x) \simeq f(x) + f'(x) \Delta x$.  In the code, this is
+        performed by the function $\texttt{euler}$. 
+    \item[(c)] We compute the acceptance probability $\alpha$ as $\P_H(\q_{next}, \p_{next})/P_H(\q, \p) = \exp(H(\q_{next}, \p_{next}) - H(\q, \p))$.
+        Rather that computing the acceptance as $r < \alpha$, we compute
+        $\log r < \alpha$ for better numerical accuracy. This leads
+        to the code being \mintinline{py}{if np.log(r) < h(q, p) - h(qnext, pnext)}.
+\end{itemize}
 
 \includegraphics[width=\textwidth]{mcmc-hmc-WRONG-euler-1d-exp.png}
 This has sampled disastrously: what is going wrong?
 
 \subsection{Simulation: Euler integration}
 Unfortunately, it turns out that running this simulation is in fact numerically
-unstable on using a naive simulation schemes. For example, let us say
-that we wish to simulate the orbit of a planet. Recall that we want
+unstable on using a naive integrator such as Euler. We shall explore this
+by trying to integrate the orbits of a planet under gravitational force. 
+We are using a bog-standard Hamiltonian with 
+$K(\p) = \p^T \p$, $U(\q) = \sqrt(\q^T \q)$, $H(\q, \p) = U(\q) + K(\p)$.
+We will integrate Hamilton's equations using the \texttt{euler} integrator
+and look at the orbits. Ideally, we want the orbits to be \textbf{time-reversible},
+since our \textbf{proposal should be symmetric}!
+
+Let us say that we wish to simulate the orbit of a planet. Recall that we want
 the proposal to be symmetric: so, if we simulate the trajectory of the planet
 for $N$ timesteps, each timestep of time $\delta t$, and then \emph{reverse}
-the momentum of the planet, run the next phse of the simulation for $N$ timesteps
-with timestep $\Delta t$, we should begin where we started. However,
+the momentum of the planet, run the next phse of the simulation for $N$
+timesteps with timestep $\Delta t$, we should begin where we started. However,
 if we try to use the euler integration equations, here is what we see:
 
 \begin{minted}{py}
@@ -609,6 +634,17 @@ def euler(dhdp, dhdq, q, p, dt):
    pnew = p + -dhdq(q, p) * dt
    qnew = q + dhdp(q, p) * dt
    return (qnew, pnew)
+...
+def planet(q, p, integrator, n, dt):
+    STRENGTH = 0.5
+    # minimise potential V(q): q, K(p, q) p^2
+    # H = STRENGTH * |q| (potential) + p^2/2 (kinetic)
+    def H(qcur, pcur): return STRENGTH * np.linalg.norm(q) + np.dot(p, p) / 2
+    def dhdp(qcur, pcur): return p
+    def dhdq(qcur, pcur): return STRENGTH * 2 * q / np.linalg.norm(q)
+
+    for i in range(n): (q, p) = integrator(dhdp, dhdq, q, p, dt) ...
+    return np.asarray(qs), np.asarray(ps)
 \end{minted}
 
 \includegraphics[width=\textwidth]{./euler-dt-0-1.png}
@@ -646,8 +682,64 @@ def leapfrog(dhdp, dhdq, q0, p0, dt):
 \includegraphics[width=\textwidth]{./leapfrog-dt-0-1.png}
 
 It is clear from the plots that the leapfrog integrator is stable: orbits
-stay as orbits. Indeed, we can prove the symplecticity/energy-preserving
-property of this integrator.
+stay as orbits, and running-in-reverse works as expected. We provide
+a formal proof of time reversibility below. We also prove that this
+type of integrator preserves energy. In total, these two properties
+ensure that the \textbf{proposals we make will be symmetric}.
+
+\subsection{Proof that leapfrog is time-reversible}
+
+We will assume that $H(\q, \p) \equiv U(\q) + K(\p)$. That is, the kinetic
+energy depends only on momentum, and the potential energy depends only
+on position. This allows us to write the derivatives as
+$\frac{\partial H}{\partial \q} \equiv U'(\q)$,
+$\frac{\partial H}{\partial \p} \equiv K'(\p)$. This also modifies Hamilton's
+equations into:
+
+$$
+\frac{\partial \q}{\partial t} = \frac{\partial H(\q, \p)}{\partial \p} = K'(\p) \qquad
+\frac{\partial \p}{\partial t} = -\frac{\partial H(\q, \p)}{\partial \q} = -U'(\q)
+$$
+
+We will also assume that $K'(-\p) = -K'(\p)$. This is true of our usual
+choice of kinetic energy being $K(\p) \equiv \p^T \p$. We will
+write down the forward simulation according to the leapfrog equations,
+and then the backward steps. This will show us that the final
+state of the backward equations $(\q'_1, \p'_2)$ will be equal
+to the reversed initial stte $(\q_0, -\p_0)$.
+
+{\footnotesize
+\begin{itemize}
+    \item[fwd 1] $\left[ \q_0, \p_0 \right]$
+    \item[fwd 2] $\left[ \q_0, \p_1 \equiv \p_0 - 0.5U'(\q_0)dt \right]$
+    \item[fwd 3] $\left[ \q_1 \equiv \q_0 + K'(\p_1)dt, \p_1 \right]$
+    \item[fwd 4] $\left[ \q_1, \p_2 \equiv  \p_1 - 0.5U'(\q_1)dt \right]$
+    \item[bwd 1] $\left[ \q'_0 \equiv \q_1 = \q_0 + K'(\p_1)dt, \p'_0 \equiv -\p_2 = \p_1 - 0.5U'(\q_1)dt \right]$
+    \item[bwd 2] $\left[ \q'_0, \p'_1 \equiv \p'_0 - 0.5U'(\q'_0)dt = -(\p_1 - 0.5U'(\q_1)dt) - 0.5U'(\q_1)dt = -\p_1 \right]$
+    \item[bwd 3] $\left[ \q'_1 \equiv \q'_0 + K'(\p'_1)dt = (\q_0 + K'(\p_1)dt) + K'(-\p_1)dt = (\q_0 + K'(\p_1)dt) -K'(\p_1)dt  = \q_0, \p'_1 \right]$
+    \item[bwd 4] $\left[ \q'_1 \equiv \q_0, \p'_2 \equiv \p'_1 - 0.5U'(\q'_1) = -\p_1 - 0.5U'(\q_0)dt = -(\p_0 - 0.5U'(\q_0)) -  0.5U'(\q_0)dt = -\p_0  \right]$
+\end{itemize}
+
+\begin{tabular}{lll}
+    \texttt{n} & \texttt{fwd $\q$} &  \texttt{fwd $\p$}  \\
+    1 & $\q_0$ & $\p_0$  \\
+    2 & $\q_0$ & $\p_1 =  \p_0 - 0.5U'(\q_0)dt$ \\
+    3 & $\q_1 = \q_0 + K'(\p_1)dt$ & $\p_1$ \\
+    4 & $\q_1$ & $\p_2 =  \p_1 - 0.5U'(\q_1)dt$ \\
+    \hline
+    \texttt{n} & \texttt{bwd $\q$} &  \texttt{bwd $\p$}  \\
+    1 & $\q'_0 = \q_1 $ & $\p'_0 = -\p_2 $ \\
+    2 & $\q'_0 = \q_1 $ & $\p'_1 = -\p_1$ \\
+    3 & $\q'_1 = \q_0$ & $\p'_1 = -\p_1$\\
+    4 & $\q'_1 = \q_0$ & $\p'_2 = -\p_0$ \\
+\end{tabular}
+}
+
+Indeed, we see that the backward equations where we set $(\q \mapsto \q, \p \mapsto -\p)$
+retraces our dynamics, just running backward. Hence, \textbf{the leapfrog equations are reversible},
+and therefore act as a \textbf{symmetric proposal}.
+
+
 
 \subsection{Proof that leapfrog is symplectic}
 % http://physics.ucsc.edu/~peter/242/leapfrog.pdf
@@ -732,6 +824,9 @@ to move towards the center.
 This is in stark contrast to the MH case, where the entire $x$-axis is pink,
 due to the 'current point' having to move, proposal-by-proposal (which allows
 at most a movement of distance $1$), from $600$ to $0$.
+
+
+
 
 
 % \section{Discontinuous Hamiltonian monte carlo}
@@ -825,5 +920,7 @@ at most a movement of distance $1$), from $600$ to $0$.
 % traversing an orbit and are going to take a "U-turn". The details are quite
 % complex, so we may not cover this here.
 
+%\bibliographystyle{plain}
+%\bibliography{references}
 \end{document}
 
